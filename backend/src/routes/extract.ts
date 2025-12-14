@@ -73,17 +73,26 @@ router.post('/extract', async (req: Request, res: Response) => {
  * Parse HTML and extract product information
  */
 function parseHtml(html: string, baseUrl: string): any {
+  // First, try to extract JSON-LD structured data (used by many modern e-commerce sites)
+  const jsonLdData = extractJsonLd(html);
+  
   // Extract Open Graph meta tags using regex (no DOM parser needed)
   const ogTitle = extractMetaTag(html, 'property="og:title"') || 
-                  extractMetaTag(html, 'name="og:title"');
+                  extractMetaTag(html, 'name="og:title"') ||
+                  jsonLdData?.name;
   const ogDescription = extractMetaTag(html, 'property="og:description"') || 
-                        extractMetaTag(html, 'name="description"');
+                        extractMetaTag(html, 'name="description"') ||
+                        jsonLdData?.description;
   const ogImage = extractMetaTag(html, 'property="og:image"') || 
-                  extractMetaTag(html, 'name="og:image"');
+                  extractMetaTag(html, 'name="og:image"') ||
+                  (jsonLdData?.image && (Array.isArray(jsonLdData.image) ? jsonLdData.image[0] : jsonLdData.image));
   const ogPrice = extractMetaTag(html, 'property="product:price:amount"') || 
-                  extractMetaTag(html, 'property="product:price"');
+                  extractMetaTag(html, 'property="product:price"') ||
+                  (jsonLdData?.offers?.price || jsonLdData?.price);
   const ogBrand = extractMetaTag(html, 'property="product:brand"') || 
-                  extractMetaTag(html, 'itemprop="brand"');
+                  extractMetaTag(html, 'itemprop="brand"') ||
+                  jsonLdData?.brand?.name ||
+                  jsonLdData?.brand;
 
   // Extract title
   const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
@@ -98,16 +107,34 @@ function parseHtml(html: string, baseUrl: string): any {
     images.push(resolveUrl(ogImage, baseUrl));
   }
 
-  // Find product images in HTML
-  const imgRegex = /<img[^>]+(?:src|data-src|data-lazy-src)=["']([^"']+)["'][^>]*>/gi;
+  // Find product images in HTML (including lazy-loaded images)
+  const imgRegex = /<img[^>]+(?:src|data-src|data-lazy-src|data-original|data-srcset|srcset)=["']([^"']+)["'][^>]*>/gi;
   let imgMatch;
   while ((imgMatch = imgRegex.exec(html)) !== null && images.length < 5) {
-    const src = imgMatch[1];
+    let src = imgMatch[1];
+    // Handle srcset (take first URL)
+    if (src.includes(',')) {
+      src = src.split(',')[0].trim().split(' ')[0];
+    }
     if (src && !src.startsWith('data:') && !images.includes(src)) {
       const absoluteUrl = resolveUrl(src, baseUrl);
-      // Filter out small icons/logos
-      if (!src.includes('icon') && !src.includes('logo') && !src.includes('avatar')) {
+      // Filter out small icons/logos, but include product images
+      if (!src.includes('icon') && !src.includes('logo') && !src.includes('avatar') && 
+          !src.includes('favicon') && (src.includes('product') || src.includes('item') || 
+          src.match(/\.(jpg|jpeg|png|webp)/i))) {
         images.push(absoluteUrl);
+      }
+    }
+  }
+  
+  // Also check JSON-LD for images
+  if (jsonLdData?.image) {
+    const jsonImages = Array.isArray(jsonLdData.image) ? jsonLdData.image : [jsonLdData.image];
+    for (const img of jsonImages) {
+      if (images.length >= 5) break;
+      const imgUrl = typeof img === 'string' ? img : (img.url || img);
+      if (imgUrl && !images.includes(imgUrl)) {
+        images.push(resolveUrl(imgUrl, baseUrl));
       }
     }
   }
@@ -115,14 +142,21 @@ function parseHtml(html: string, baseUrl: string): any {
   // Extract price
   let price: number | null = null;
   if (ogPrice) {
-    price = parseFloat(ogPrice.replace(/[^0-9.]/g, ''));
+    // Handle both string and number prices
+    if (typeof ogPrice === 'number') {
+      price = ogPrice;
+    } else {
+      price = parseFloat(ogPrice.toString().replace(/[^0-9.]/g, ''));
+    }
   } else {
-    // Try common price patterns
+    // Try common price patterns in HTML
     const pricePatterns = [
       /[\$£€¥]\s*(\d+\.?\d*)/,
       /price[:\s]*[\$£€¥]?\s*(\d+\.?\d*)/i,
       /(\d+\.?\d*)\s*[\$£€¥]/,
       /"price"[:\s]*"([^"]+)"/i,
+      /"price"[:\s]*(\d+\.?\d*)/i,
+      /priceAmount["\s:]+(\d+\.?\d*)/i,
     ];
     
     for (const pattern of pricePatterns) {
@@ -163,6 +197,43 @@ function parseHtml(html: string, baseUrl: string): any {
       hasOpenGraph: !!ogTitle,
     },
   };
+}
+
+/**
+ * Extract JSON-LD structured data (used by many modern e-commerce sites)
+ */
+function extractJsonLd(html: string): any {
+  try {
+    // Find all JSON-LD script tags
+    const jsonLdRegex = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+    let match;
+    const jsonLdBlocks: any[] = [];
+    
+    while ((match = jsonLdRegex.exec(html)) !== null) {
+      try {
+        const jsonData = JSON.parse(match[1]);
+        jsonLdBlocks.push(jsonData);
+      } catch (e) {
+        // Skip invalid JSON
+      }
+    }
+    
+    // Look for Product schema
+    for (const block of jsonLdBlocks) {
+      // Handle both single objects and arrays
+      const items = Array.isArray(block) ? block : [block];
+      for (const item of items) {
+        if (item['@type'] === 'Product' || item['@type'] === 'http://schema.org/Product') {
+          return item;
+        }
+      }
+    }
+    
+    // If no Product schema, return first valid JSON-LD
+    return jsonLdBlocks[0] || null;
+  } catch (error) {
+    return null;
+  }
 }
 
 /**
@@ -215,11 +286,11 @@ function inferCategory(url: string, title: string | null, description: string | 
   const text = `${url} ${title || ''} ${description || ''}`.toLowerCase();
   
   const categoryKeywords: Record<string, string[]> = {
-    tops: ['shirt', 'top', 'blouse', 't-shirt', 'tee', 'sweater', 'hoodie', 'tank'],
-    bottoms: ['pants', 'jeans', 'trousers', 'shorts', 'skirt', 'leggings', 'tights'],
-    shoes: ['shoe', 'sneaker', 'boot', 'sandal', 'heel', 'slipper', 'sneakers'],
-    outerwear: ['coat', 'jacket', 'parka', 'blazer', 'cardigan', 'vest'],
-    accessories: ['bag', 'hat', 'belt', 'watch', 'jewelry', 'scarf', 'gloves'],
+    tops: ['shirt', 'top', 'blouse', 't-shirt', 'tee', 'sweater', 'hoodie', 'tank', 'crop', 'bra', 'sports bra', 'jogger'],
+    bottoms: ['pants', 'jeans', 'trousers', 'shorts', 'skirt', 'leggings', 'tights', 'joggers', 'sweatpants'],
+    shoes: ['shoe', 'sneaker', 'boot', 'sandal', 'heel', 'slipper', 'sneakers', 'trainer'],
+    outerwear: ['coat', 'jacket', 'parka', 'blazer', 'cardigan', 'vest', 'windbreaker'],
+    accessories: ['bag', 'hat', 'belt', 'watch', 'jewelry', 'scarf', 'gloves', 'headband', 'socks'],
   };
 
   for (const [category, keywords] of Object.entries(categoryKeywords)) {
@@ -235,13 +306,28 @@ function inferCategory(url: string, title: string | null, description: string | 
  * Extract color information
  */
 function extractColor(html: string, title: string | null, description: string | null): string | null {
-  const text = `${title || ''} ${description || ''}`.toLowerCase();
+  const text = `${html} ${title || ''} ${description || ''}`.toLowerCase();
   
   const colors = ['black', 'white', 'gray', 'grey', 'navy', 'blue', 'red', 'green', 
-    'yellow', 'orange', 'pink', 'purple', 'brown', 'beige', 'multicolor', 'multi-color'];
+    'yellow', 'orange', 'pink', 'purple', 'brown', 'beige', 'multicolor', 'multi-color',
+    'burgundy', 'maroon', 'teal', 'cyan', 'lime', 'olive', 'tan', 'khaki'];
+  
+  // Also check for color in meta tags or JSON-LD
+  const colorMeta = extractMetaTag(html, 'property="product:color"') || 
+                    extractMetaTag(html, 'name="color"');
+  if (colorMeta) {
+    const normalized = colorMeta.toLowerCase();
+    for (const color of colors) {
+      if (normalized.includes(color)) {
+        if (color === 'grey') return 'gray';
+        if (color === 'multi-color') return 'multicolor';
+        return color;
+      }
+    }
+  }
   
   for (const color of colors) {
-    if (text.includes(color)) {
+    if (text.includes(` ${color} `) || text.includes(`-${color}-`) || text.endsWith(` ${color}`)) {
       // Normalize
       if (color === 'grey') return 'gray';
       if (color === 'multi-color') return 'multicolor';
