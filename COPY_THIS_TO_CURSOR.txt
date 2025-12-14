@@ -1,0 +1,56 @@
+I'm continuing development on an AI Closet mobile app - a React Native + Expo application with Express.js backend for wardrobe management and AI outfit suggestions.
+
+CRITICAL FILES TO KNOW:
+- services/api.ts - Backend API client, handles JWT auth, dynamic API URL detection (auto-detects remote access)
+- services/storageSync.ts - Hybrid storage service, syncs local (SQLite/localStorage) with backend based on login status
+- App.tsx - Main entry point, handles navigation, auth flow, onboarding
+- backend/src/server.ts - Express server, CORS configured for Expo, listens on 0.0.0.0
+
+KEY SCREENS:
+- screens/LoginScreen.tsx - Authentication with client/server validation, password complexity requirements
+- screens/AddItemScreen.tsx - Add clothing items with image upload, drag-and-drop (web), auto-image analysis
+- screens/FitsScreen.tsx - AI outfit generation (mock service ready for LLM integration)
+- screens/ProfileScreen.tsx - Settings, backend URL configuration
+
+KEY SERVICES:
+- services/aiStylist.ts - Mock AI service for outfit generation (ready for real LLM integration)
+- services/imageAnalysis.ts - Mock image analysis for auto-detecting clothing attributes
+- lib/storage.ts - Local storage layer (SQLite for native, localStorage for web)
+
+CURRENT FEATURES:
+✅ Authentication with JWT, password complexity validation, "user already exists" detection
+✅ Wardrobe management with photos, auto-image analysis, drag-and-drop (web)
+✅ AI outfit generation (mock), outfit preview visualization
+✅ Cross-platform (Web, iOS, Android via Expo Go or browser)
+✅ Dynamic API URL detection - uses hostname IP when accessed remotely
+✅ Hybrid storage - local storage when logged out, backend sync when logged in
+
+TECH STACK:
+- Frontend: Expo ~50, React Native 0.73, TypeScript, React Navigation 6
+- Backend: Express, SQLite, JWT, bcrypt
+- Storage: SQLite (native), localStorage (web), backend sync
+
+IMPORTANT NOTES:
+- Node.js: Use LTS 20.x.x (NOT 24+ - causes Metro bundler issues on Windows)
+- Backend URL: Users configure in Profile → Settings (format: http://YOUR_IP:3000/api)
+- API auto-detects remote access via window.location.hostname
+- Android SDK error when pressing 'a' is normal - use Expo Go instead
+- CORS configured to allow all Expo origins
+
+SETUP:
+Frontend: npm install
+Backend: cd backend && npm install
+Run: Terminal 1: cd backend && npm run dev | Terminal 2: npm start (press 'w' for web)
+
+ARCHITECTURE:
+Frontend → storageSync.ts → Local Storage OR Backend API → SQLite
+Always use services/api.ts for backend calls, services/storageSync.ts for data operations
+
+DOCUMENTATION:
+- SETUP_INSTRUCTIONS.md - Complete setup guide
+- CURSOR_HANDOFF_PROMPT.md - Full handoff context
+- TROUBLESHOOTING.md - Common issues
+
+Please familiarize yourself with services/api.ts and services/storageSync.ts as these are critical. The app uses a hybrid storage strategy that switches between local and backend based on login status. API URL is auto-detected for remote access. What would you like to work on?
+
+

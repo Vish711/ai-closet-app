@@ -1,0 +1,94 @@
+/**
+ * Main server entry point
+ */
+
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { initDatabase } from './db/database';
+import authRoutes from './routes/auth';
+import wardrobeRoutes from './routes/wardrobe';
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+const DB_PATH = process.env.DATABASE_PATH || './data/closet.db';
+
+// CORS configuration - Allow all Expo connections
+const corsOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',')
+  : ['http://localhost:8081', 'http://localhost:19006', 'exp://*', 'http://*', 'https://*'];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, Postman, etc.)
+      if (!origin) return callback(null, true);
+      
+      // Allow all Expo/React Native connections
+      if (origin.includes('localhost') || 
+          origin.includes('exp://') || 
+          origin.includes('expo') ||
+          origin.includes('192.168.') ||
+          origin.includes('10.') ||
+          origin.includes('172.') ||
+          origin.includes('github.io') ||
+          origin.includes('github.com')) {
+        return callback(null, true);
+      }
+      
+      // Check against allowed origins
+      if (corsOrigins.includes('*') || corsOrigins.some(allowed => origin.includes(allowed))) {
+        return callback(null, true);
+      }
+      
+      callback(null, true); // Allow all for development
+    },
+    credentials: true,
+  })
+);
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/wardrobe', wardrobeRoutes);
+
+// Error handling middleware
+app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+// Initialize database and start server
+async function startServer() {
+  try {
+    console.log('Initializing database...');
+    await initDatabase(DB_PATH);
+    console.log('Database initialized successfully');
+
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 Server running on http://localhost:${PORT}`);
+      console.log(`📊 Health check: http://localhost:${PORT}/health`);
+      console.log(`🔐 Auth endpoints: http://localhost:${PORT}/api/auth`);
+      console.log(`👕 Wardrobe endpoints: http://localhost:${PORT}/api/wardrobe`);
+      console.log(`\n💡 To connect from mobile devices:`);
+      console.log(`   1. Find your IP: ipconfig (Windows) or ifconfig (Mac/Linux)`);
+      console.log(`   2. Use: http://YOUR_IP:${PORT}/api`);
+      console.log(`   3. Update API URL in app settings (Profile → Backend Server URL)\n`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
+

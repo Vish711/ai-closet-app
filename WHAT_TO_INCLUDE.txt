@@ -1,0 +1,143 @@
+AI CLOSET APP - FILES TO INCLUDE IN TRANSFER
+=============================================
+
+INCLUDE ALL OF THESE:
+---------------------
+
+✅ Source Code Files:
+   - All .tsx files (React components)
+   - All .ts files (TypeScript code)
+   - All .json files (configurations)
+   - All .js files (config files like babel.config.js, metro.config.js)
+   - All .md files (documentation)
+
+✅ Folders to Include:
+   - components/
+   - screens/
+   - services/
+   - hooks/
+   - lib/
+   - theme/
+   - types/
+   - backend/src/
+   - assets/ (if you have images)
+   - backend/data/ (optional - contains database)
+
+✅ Configuration Files:
+   - package.json (frontend)
+   - package-lock.json (frontend)
+   - tsconfig.json (frontend)
+   - babel.config.js
+   - metro.config.js
+   - app.json
+   - .gitignore
+   - backend/package.json
+   - backend/package-lock.json
+   - backend/tsconfig.json
+   - backend/.gitignore
+
+✅ Batch Files (Windows):
+   - START_APP.bat
+   - START_EXPO_TUNNEL.bat
+   - START_EXPO_LAN.bat
+   - START_WEB.bat
+   - START_APP_FIXED.bat
+   - START_APP_FIXED.ps1
+   - START_APP.ps1
+
+✅ Documentation:
+   - All .md files (README, SETUP, TROUBLESHOOTING, etc.)
+
+
+EXCLUDE THESE (Will be regenerated):
+------------------------------------
+
+❌ node_modules/ (both frontend and backend)
+   - These are huge and can be reinstalled with "npm install"
+
+❌ .expo/ (cache folder)
+   - Will be regenerated automatically
+
+❌ dist/ (build output)
+   - Will be regenerated when building
+
+❌ .expo-shared/ (if exists)
+   - Cache folder
+
+❌ backend/data/closet.db (optional)
+   - Include if you want to keep existing data
+   - Exclude if you want a fresh database
+
+
+QUICK TRANSFER CHECKLIST:
+-------------------------
+
+[ ] Copy entire project folder
+[ ] Exclude node_modules folders
+[ ] Exclude .expo folder
+[ ] Verify all .tsx files present
+[ ] Verify all .ts files present
+[ ] Verify package.json files present
+[ ] Verify backend/src/ folder complete
+[ ] Verify components/, screens/, services/ folders complete
+[ ] Include all .md documentation files
+[ ] Include batch files (.bat)
+
+
+FILE STRUCTURE TO VERIFY:
+-------------------------
+
+AI Closet APP/
+├── App.tsx ✅
+├── package.json ✅
+├── tsconfig.json ✅
+├── babel.config.js ✅
+├── metro.config.js ✅
+├── app.json ✅
+├── components/ ✅
+│   ├── ClothingItemCard.tsx
+│   ├── FilterChip.tsx
+│   ├── FuturisticCard.tsx
+│   ├── GlowButton.tsx
+│   ├── ImageDropZone.tsx
+│   ├── OutfitCard.tsx
+│   └── OutfitPreview.tsx
+├── screens/ ✅
+│   ├── AddItemScreen.tsx
+│   ├── CalendarScreen.tsx
+│   ├── ClosetScreen.tsx
+│   ├── FitsScreen.tsx
+│   ├── LoginScreen.tsx
+│   ├── OnboardingScreen.tsx
+│   └── ProfileScreen.tsx
+├── services/ ✅
+│   ├── aiStylist.ts
+│   ├── api.ts
+│   ├── imageAnalysis.ts
+│   └── storageSync.ts
+├── hooks/ ✅
+│   └── useWardrobe.ts
+├── lib/ ✅
+│   └── storage.ts
+├── theme/ ✅
+│   └── index.ts
+├── types/ ✅
+│   └── index.ts
+├── backend/ ✅
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── src/
+│       ├── server.ts
+│       ├── db/
+│       ├── middleware/
+│       ├── routes/
+│       └── types/
+└── All .md files ✅
+
+
+TRANSFER SIZE:
+--------------
+Without node_modules: ~2-5 MB
+With node_modules: ~500+ MB (don't include!)
+
+

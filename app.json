@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "AI Closet",
+    "slug": "ai-closet-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#020307"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.aicloset.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#020307"
+      },
+      "package": "com.aicloset.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to add clothing items to your closet."
+        }
+      ]
+    ]
+  }
+}
+
+
