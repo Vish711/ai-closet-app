@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.js": "/ai-closet-app/static/js/main.d2e5b281.js",
+    "static/js/140.0ae2e49f.js": "/ai-closet-app/static/js/140.0ae2e49f.js",
+    "index.html": "/ai-closet-app/index.html",
+    "manifest.json": "/ai-closet-app/manifest.json",
+    "serve.json": "/ai-closet-app/serve.json",
+    "main.d2e5b281.js.map": "/ai-closet-app/static/js/main.d2e5b281.js.map",
+    "140.0ae2e49f.js.map": "/ai-closet-app/static/js/140.0ae2e49f.js.map"
+  },
+  "entrypoints": [
+    "static/js/140.0ae2e49f.js",
+    "static/js/main.d2e5b281.js"
+  ]
+}
