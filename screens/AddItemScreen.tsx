@@ -13,6 +13,7 @@ import { theme } from '@/theme';
 import * as storage from '@/lib/storage';
 import { analyzeClothingImage } from '@/services/imageAnalysis';
 import { ImageDropZone } from '@/components/ImageDropZone';
+import { extractFromUrl, downloadImageFromUrl } from '@/services/urlExtraction';
 
 export const AddItemScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -25,7 +26,9 @@ export const AddItemScreen: React.FC = () => {
   const [tags, setTags] = useState<string[]>([]);
   const [cost, setCost] = useState('');
   const [tagInput, setTagInput] = useState('');
+  const [urlInput, setUrlInput] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const [autoDetected, setAutoDetected] = useState({
     category: false,
     color: false,
@@ -36,6 +39,96 @@ export const AddItemScreen: React.FC = () => {
   const categories: ClothingCategory[] = ['tops', 'bottoms', 'shoes', 'outerwear', 'accessories'];
   const colors: Color[] = ['black', 'white', 'gray', 'navy', 'blue', 'red', 'green', 'yellow', 'orange', 'pink', 'purple', 'brown', 'beige', 'multicolor'];
   const seasons: Season[] = ['spring', 'summer', 'fall', 'winter', 'all-season'];
+
+  const extractFromUrlInput = async () => {
+    if (!urlInput.trim()) {
+      Alert.alert('Missing URL', 'Please enter a URL to extract from.');
+      return;
+    }
+
+    setExtracting(true);
+    try {
+      const extracted = await extractFromUrl(urlInput.trim());
+      
+      // Auto-fill form with extracted data
+      if (extracted.title) {
+        // Could use title for tags or description
+        if (!tags.length) {
+          setTags([extracted.title]);
+        }
+      }
+      
+      if (extracted.brand) {
+        setBrand(extracted.brand);
+      }
+      
+      if (extracted.price) {
+        setCost(extracted.price.toString());
+      }
+      
+      if (extracted.size) {
+        setSize(extracted.size);
+      }
+      
+      if (extracted.category) {
+        const categoryMatch = categories.find(c => 
+          c.toLowerCase() === extracted.category?.toLowerCase()
+        );
+        if (categoryMatch) {
+          setCategory(categoryMatch);
+          setAutoDetected(prev => ({ ...prev, category: true }));
+        }
+      }
+      
+      if (extracted.color) {
+        const colorMatch = colors.find(c => 
+          c.toLowerCase() === extracted.color?.toLowerCase()
+        );
+        if (colorMatch) {
+          setColor(colorMatch);
+          setAutoDetected(prev => ({ ...prev, color: true }));
+        }
+      }
+      
+      // Download and set the first image
+      if (extracted.images && extracted.images.length > 0) {
+        try {
+          const imageUri = await downloadImageFromUrl(extracted.images[0]);
+          setImageUri(imageUri);
+          // Analyze the downloaded image
+          await analyzeImage(imageUri);
+        } catch (error) {
+          console.error('Image download error:', error);
+          Alert.alert(
+            'Image Download Failed', 
+            'Could not download image from URL. You can add an image manually.'
+          );
+        }
+      } else {
+        Alert.alert(
+          'No Images Found', 
+          'Could not extract images from the URL. Please add an image manually.'
+        );
+      }
+      
+      if (extracted.metadata.extracted) {
+        Alert.alert('Success', 'Content extracted from URL!');
+      } else {
+        Alert.alert(
+          'Partial Extraction', 
+          'Some information could not be extracted. Please fill in missing details manually.'
+        );
+      }
+    } catch (error: any) {
+      console.error('URL extraction error:', error);
+      Alert.alert(
+        'Extraction Failed', 
+        error.message || 'Could not extract content from URL. This might be due to CORS restrictions. Try adding the item manually.'
+      );
+    } finally {
+      setExtracting(false);
+    }
+  };
 
   const analyzeImage = async (uri: string) => {
     setAnalyzing(true);
@@ -177,6 +270,39 @@ export const AddItemScreen: React.FC = () => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.cancelText}>Cancel</Text>
         </TouchableOpacity>
+      </View>
+
+      {/* URL Input Section */}
+      <View style={styles.section}>
+        <Text style={styles.label}>Or extract from URL</Text>
+        <Text style={styles.hint}>
+          Paste a product URL (e.g., from Amazon, Zara, etc.) to auto-fill details
+        </Text>
+        <View style={styles.urlInputRow}>
+          <TextInput
+            style={[styles.input, styles.urlInput]}
+            value={urlInput}
+            onChangeText={setUrlInput}
+            placeholder="https://example.com/product/..."
+            placeholderTextColor={theme.colors.text.tertiary}
+            autoCapitalize="none"
+            keyboardType="url"
+            editable={!extracting}
+          />
+          <GlowButton
+            title={extracting ? "Extracting..." : "Extract"}
+            onPress={extractFromUrlInput}
+            variant="secondary"
+            style={styles.urlExtractButton}
+            disabled={extracting || !urlInput.trim()}
+          />
+        </View>
+        {extracting && (
+          <View style={styles.extractingContainer}>
+            <ActivityIndicator size="small" color={theme.colors.accent.primary} />
+            <Text style={styles.extractingText}>Extracting content from URL...</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.imageSection}>
@@ -546,6 +672,35 @@ const styles = StyleSheet.create({
   saveButton: {
     marginTop: theme.spacing.lg,
     marginBottom: theme.spacing.xl,
+  },
+  hint: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.tertiary,
+    marginBottom: theme.spacing.sm,
+  },
+  urlInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  urlInput: {
+    flex: 1,
+    marginRight: theme.spacing.sm,
+  },
+  urlExtractButton: {
+    paddingHorizontal: theme.spacing.lg,
+  },
+  extractingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: theme.spacing.sm,
+    padding: theme.spacing.sm,
+    backgroundColor: theme.colors.background.tertiary,
+    borderRadius: theme.borderRadius.md,
+  },
+  extractingText: {
+    marginLeft: theme.spacing.sm,
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.secondary,
   },
 });
 
