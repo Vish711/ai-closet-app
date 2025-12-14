@@ -149,9 +149,10 @@ async function analyzeWithGoogleVision(imageBase64: string): Promise<ImageAnalys
                 content: imageBase64,
               },
               features: [
-                { type: 'LABEL_DETECTION', maxResults: 10 },
+                { type: 'LABEL_DETECTION', maxResults: 20 },
                 { type: 'TEXT_DETECTION', maxResults: 10 },
                 { type: 'IMAGE_PROPERTIES', maxResults: 1 },
+                { type: 'OBJECT_LOCALIZATION', maxResults: 10 },
               ],
             },
           ],
@@ -167,9 +168,10 @@ async function analyzeWithGoogleVision(imageBase64: string): Promise<ImageAnalys
     const data = await response.json() as any;
     const annotations = data.responses[0];
 
-    // Extract category from labels
+    // Extract category from labels and objects
     const labels = annotations.labelAnnotations || [];
-    const category = inferCategoryFromLabels(labels);
+    const objects = annotations.localizedObjectAnnotations || [];
+    const category = inferCategoryFromLabels(labels, objects);
     
     // Extract color from image properties
     const colors = annotations.imagePropertiesAnnotation?.dominantColors?.colors || [];
@@ -179,8 +181,12 @@ async function analyzeWithGoogleVision(imageBase64: string): Promise<ImageAnalys
     const texts = annotations.textAnnotations || [];
     const brand = extractBrandFromText(texts);
 
-    // Generate tags from labels
-    const tags = labels.slice(0, 5).map((l: any) => l.description.toLowerCase());
+    // Generate tags from labels (prioritize high confidence)
+    const sortedLabels = labels
+      .filter((l: any) => l.score > 0.5) // Only use confident labels
+      .sort((a: any, b: any) => b.score - a.score)
+      .slice(0, 5);
+    const tags = sortedLabels.map((l: any) => l.description.toLowerCase());
 
     return {
       category,
@@ -221,26 +227,101 @@ async function mockImageAnalysis(imageBase64: string): Promise<ImageAnalysisResu
 }
 
 /**
- * Helper: Infer category from Google Vision labels
+ * Helper: Infer category from Google Vision labels and objects
  */
-function inferCategoryFromLabels(labels: any[]): string | null {
-  const categoryKeywords: Record<string, string[]> = {
-    tops: ['shirt', 'top', 'blouse', 't-shirt', 'sweater', 'hoodie', 'tank'],
-    bottoms: ['pants', 'jeans', 'trousers', 'shorts', 'skirt', 'leggings'],
-    shoes: ['shoe', 'sneaker', 'boot', 'sandal', 'footwear'],
-    outerwear: ['coat', 'jacket', 'parka', 'blazer'],
-    accessories: ['bag', 'hat', 'belt', 'watch'],
+function inferCategoryFromLabels(labels: any[], objects: any[]): string | null {
+  // Expanded keyword mapping with confidence scoring
+  const categoryKeywords: Record<string, { keywords: string[], weight: number }> = {
+    tops: {
+      keywords: [
+        'shirt', 'top', 'blouse', 't-shirt', 'tee', 'sweater', 'hoodie', 'tank', 'crop top',
+        'polo', 'henley', 'turtleneck', 'cardigan', 'pullover', 'jersey', 'tunic', 'camisole',
+        'bodysuit', 'blazer', 'sweatshirt', 'long sleeve', 'short sleeve'
+      ],
+      weight: 1.0
+    },
+    bottoms: {
+      keywords: [
+        'pants', 'jeans', 'trousers', 'shorts', 'skirt', 'leggings', 'tights', 'joggers',
+        'sweatpants', 'chinos', 'cargo pants', 'capri', 'culottes', 'palazzo', 'wide leg',
+        'straight leg', 'skinny', 'bootcut', 'flare'
+      ],
+      weight: 1.0
+    },
+    shoes: {
+      keywords: [
+        'shoe', 'sneaker', 'boot', 'sandal', 'footwear', 'trainer', 'running shoe',
+        'athletic shoe', 'dress shoe', 'loafer', 'oxford', 'flats', 'pumps', 'heels'
+      ],
+      weight: 1.0
+    },
+    outerwear: {
+      keywords: [
+        'coat', 'jacket', 'parka', 'blazer', 'windbreaker', 'bomber', 'denim jacket',
+        'leather jacket', 'trench coat', 'peacoat', 'puffer', 'fleece', 'vest'
+      ],
+      weight: 1.0
+    },
+    accessories: {
+      keywords: [
+        'bag', 'hat', 'belt', 'watch', 'jewelry', 'scarf', 'gloves', 'headband',
+        'socks', 'sunglasses', 'wallet', 'backpack', 'purse', 'tote', 'clutch'
+      ],
+      weight: 0.8 // Lower weight since accessories are less common
+    },
   };
 
-  const labelText = labels.map(l => l.description.toLowerCase()).join(' ');
+  // Combine labels and objects, prioritizing high confidence
+  const allItems: Array<{ text: string, confidence: number }> = [];
   
-  for (const [category, keywords] of Object.entries(categoryKeywords)) {
-    if (keywords.some(keyword => labelText.includes(keyword))) {
-      return category;
+  // Add labels with their confidence scores
+  labels.forEach((l: any) => {
+    allItems.push({
+      text: l.description.toLowerCase(),
+      confidence: l.score || 0.5
+    });
+  });
+  
+  // Add objects with their confidence scores
+  objects.forEach((o: any) => {
+    allItems.push({
+      text: o.name.toLowerCase(),
+      confidence: o.score || 0.5
+    });
+  });
+
+  // Score each category
+  const categoryScores: Record<string, number> = {};
+  
+  for (const [category, config] of Object.entries(categoryKeywords)) {
+    let score = 0;
+    
+    for (const item of allItems) {
+      for (const keyword of config.keywords) {
+        if (item.text.includes(keyword)) {
+          // Weight by confidence and category weight
+          score += item.confidence * config.weight;
+          break; // Only count once per item
+        }
+      }
+    }
+    
+    categoryScores[category] = score;
+  }
+
+  // Find category with highest score
+  let maxScore = 0;
+  let bestCategory: string | null = null;
+  
+  for (const [category, score] of Object.entries(categoryScores)) {
+    if (score > maxScore) {
+      maxScore = score;
+      bestCategory = category;
     }
   }
 
-  return null;
+  // Only return if confidence is reasonable
+  return maxScore > 0.3 ? bestCategory : null;
 }
 
 /**
