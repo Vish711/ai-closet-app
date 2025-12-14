@@ -34,6 +34,7 @@ export const AddItemScreen: React.FC = () => {
     color: false,
     season: false,
     tags: false,
+    brand: false,
   });
 
   const categories: ClothingCategory[] = ['tops', 'bottoms', 'shoes', 'outerwear', 'accessories'];
@@ -150,6 +151,7 @@ export const AddItemScreen: React.FC = () => {
       }
       if (analysis.brand) {
         setBrand(analysis.brand);
+        setAutoDetected(prev => ({ ...prev, brand: true }));
       }
       if (analysis.tags && analysis.tags.length > 0) {
         setTags(analysis.tags);
@@ -181,7 +183,7 @@ export const AddItemScreen: React.FC = () => {
       const uri = result.assets[0].uri;
       setImageUri(uri);
       // Reset auto-detected flags
-      setAutoDetected({ category: false, color: false, season: false, tags: false });
+      setAutoDetected({ category: false, color: false, season: false, tags: false, brand: false });
       // Automatically analyze the image
       await analyzeImage(uri);
     }
@@ -204,7 +206,7 @@ export const AddItemScreen: React.FC = () => {
       const uri = result.assets[0].uri;
       setImageUri(uri);
       // Reset auto-detected flags
-      setAutoDetected({ category: false, color: false, season: false, tags: false });
+      setAutoDetected({ category: false, color: false, season: false, tags: false, brand: false });
       // Automatically analyze the image
       await analyzeImage(uri);
     }
@@ -333,13 +335,15 @@ export const AddItemScreen: React.FC = () => {
                 disabled={analyzing}
               />
             </View>
-            {!analyzing && (autoDetected.category || autoDetected.color || autoDetected.season) && (
+            {!analyzing && (autoDetected.category || autoDetected.color || autoDetected.season || autoDetected.brand || autoDetected.tags) && (
               <View style={styles.autoDetectedBadge}>
                 <Text style={styles.autoDetectedText}>
                   ✓ Auto-detected: {[
                     autoDetected.category && 'Category',
                     autoDetected.color && 'Color',
                     autoDetected.season && 'Season',
+                    autoDetected.brand && 'Brand',
+                    autoDetected.tags && 'Tags',
                   ].filter(Boolean).join(', ')}
                 </Text>
               </View>
@@ -349,7 +353,7 @@ export const AddItemScreen: React.FC = () => {
           <ImageDropZone
             onImageSelected={async (uri) => {
               setImageUri(uri);
-              setAutoDetected({ category: false, color: false, season: false, tags: false });
+              setAutoDetected({ category: false, color: false, season: false, tags: false, brand: false });
               await analyzeImage(uri);
             }}
             onTakePhoto={takePhoto}
@@ -425,11 +429,19 @@ export const AddItemScreen: React.FC = () => {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.label}>Brand</Text>
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>Brand</Text>
+          {autoDetected.brand && brand && (
+            <Text style={styles.autoLabel}>Auto-detected</Text>
+          )}
+        </View>
         <TextInput
           style={styles.input}
           value={brand}
-          onChangeText={setBrand}
+          onChangeText={(text) => {
+            setBrand(text);
+            setAutoDetected(prev => ({ ...prev, brand: false }));
+          }}
           placeholder="Enter brand name"
           placeholderTextColor={theme.colors.text.tertiary}
         />

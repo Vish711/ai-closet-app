@@ -53,47 +53,127 @@ export async function analyzeClothingImage(imageUri: string): Promise<ImageAnaly
 
 /**
  * Mock image analysis - replace with real API call
+ * 
+ * This uses smart heuristics to extract information from the image URI/filename
+ * In production, replace with actual computer vision API (OpenAI Vision, Google Vision, etc.)
  */
 async function mockImageAnalysis(imageUri: string): Promise<ImageAnalysisResult> {
   // In a real implementation, you would:
-  // 1. Send image to vision API
+  // 1. Send image to vision API (OpenAI Vision, Google Cloud Vision, AWS Rekognition)
   // 2. Get labels, colors, text detection
   // 3. Use ML model to classify clothing type
   // 4. Extract brand from text detection
   // 5. Infer season from colors and type
 
-  // For now, we'll use some smart heuristics
+  // For now, we'll use smart heuristics based on image URI/filename
+  // This provides better UX than random values
   // In production, replace this entire function with API calls
-
-  // Simulate analysis based on image properties
-  // This is a placeholder - real implementation would use computer vision
   
   const categories: ClothingCategory[] = ['tops', 'bottoms', 'shoes', 'outerwear', 'accessories'];
   const colors: Color[] = ['black', 'white', 'gray', 'navy', 'blue', 'red', 'green', 'yellow', 'orange', 'pink', 'purple', 'brown', 'beige', 'multicolor'];
   const seasons: Season[] = ['spring', 'summer', 'fall', 'winter', 'all-season'];
   
-  // Mock detection - randomly select (in production, use actual image analysis)
-  // For better UX, we'll try to make reasonable guesses
-  const detectedCategory = categories[Math.floor(Math.random() * categories.length)];
-  const detectedColor = colors[Math.floor(Math.random() * colors.length)];
-  const detectedSeason = seasons[Math.floor(Math.random() * seasons.length)];
+  // Extract information from image URI/filename (heuristic approach)
+  const uriLower = imageUri.toLowerCase();
   
-  // Generate some tags based on detected category
-  const tagMap: Record<ClothingCategory, string[]> = {
-    tops: ['casual', 'comfortable', 'versatile'],
-    bottoms: ['casual', 'comfortable'],
-    shoes: ['comfortable', 'stylish'],
-    outerwear: ['warm', 'protective'],
-    accessories: ['stylish', 'versatile'],
+  // Category detection from filename/URI
+  let detectedCategory: ClothingCategory | null = null;
+  const categoryKeywords: Record<ClothingCategory, string[]> = {
+    tops: ['shirt', 'top', 'blouse', 't-shirt', 'tee', 'sweater', 'hoodie', 'tank', 'crop', 'bra', 'polo', 'henley', 'turtleneck'],
+    bottoms: ['pants', 'jeans', 'trousers', 'shorts', 'skirt', 'leggings', 'tights', 'joggers', 'sweatpants'],
+    shoes: ['shoe', 'sneaker', 'boot', 'sandal', 'heel', 'slipper', 'trainer', 'footwear'],
+    outerwear: ['coat', 'jacket', 'parka', 'blazer', 'cardigan', 'vest', 'windbreaker', 'bomber'],
+    accessories: ['bag', 'hat', 'belt', 'watch', 'jewelry', 'scarf', 'gloves', 'headband', 'socks'],
   };
+  
+  for (const [category, keywords] of Object.entries(categoryKeywords)) {
+    if (keywords.some(keyword => uriLower.includes(keyword))) {
+      detectedCategory = category as ClothingCategory;
+      break;
+    }
+  }
+  
+  // If no category found, default to tops (most common)
+  if (!detectedCategory) {
+    detectedCategory = 'tops';
+  }
+  
+  // Color detection from filename/URI
+  let detectedColor: Color | null = null;
+  for (const color of colors) {
+    if (uriLower.includes(color)) {
+      detectedColor = color;
+      break;
+    }
+  }
+  
+  // If no color found, try to infer from common patterns
+  if (!detectedColor) {
+    // Default to common colors
+    const commonColors: Color[] = ['black', 'white', 'gray', 'navy', 'blue'];
+    detectedColor = commonColors[Math.floor(Math.random() * commonColors.length)];
+  }
+  
+  // Brand detection from filename/URI (common brands)
+  let detectedBrand: string | null = null;
+  const brandKeywords = [
+    'nike', 'adidas', 'puma', 'under armour', 'gymshark', 'lululemon', 'zara', 
+    'hm', 'h&m', 'uniqlo', 'gap', 'old navy', 'levi', 'calvin klein', 'tommy hilfiger',
+    'ralph lauren', 'polo', 'champion', 'vans', 'converse', 'new balance', 'reebok',
+    'fila', 'asics', 'brooks', 'saucony', 'mizuno'
+  ];
+  
+  for (const brand of brandKeywords) {
+    if (uriLower.includes(brand)) {
+      // Capitalize brand name properly
+      detectedBrand = brand.split(' ').map(word => {
+        if (word.includes('&')) return word.toUpperCase(); // H&M
+        return word.charAt(0).toUpperCase() + word.slice(1);
+      }).join(' ');
+      break;
+    }
+  }
+  
+  // Season inference based on category and color
+  let detectedSeason: Season = 'all-season';
+  if (detectedCategory === 'outerwear' || uriLower.includes('winter') || uriLower.includes('coat')) {
+    detectedSeason = 'winter';
+  } else if (uriLower.includes('summer') || detectedColor === 'yellow' || detectedColor === 'orange') {
+    detectedSeason = 'summer';
+  } else if (uriLower.includes('spring')) {
+    detectedSeason = 'spring';
+  } else if (uriLower.includes('fall') || uriLower.includes('autumn')) {
+    detectedSeason = 'fall';
+  }
+  
+  // Generate smart tags based on detected category and other attributes
+  const tagMap: Record<ClothingCategory, string[]> = {
+    tops: ['casual', 'comfortable', 'versatile', 'everyday'],
+    bottoms: ['casual', 'comfortable', 'versatile'],
+    shoes: ['comfortable', 'stylish', 'durable'],
+    outerwear: ['warm', 'protective', 'versatile'],
+    accessories: ['stylish', 'versatile', 'functional'],
+  };
+  
+  const baseTags = tagMap[detectedCategory] || ['casual', 'versatile'];
+  
+  // Add color-based tags
+  if (detectedColor === 'black' || detectedColor === 'white' || detectedColor === 'gray') {
+    baseTags.push('neutral', 'classic');
+  }
+  
+  // Add brand-based tags if detected
+  if (detectedBrand) {
+    baseTags.push('branded');
+  }
 
   return {
     category: detectedCategory,
     color: detectedColor,
-    brand: null, // Would be extracted from text detection in real implementation
+    brand: detectedBrand,
     season: detectedSeason,
-    tags: tagMap[detectedCategory] || [],
-    confidence: 0.75, // Mock confidence score
+    tags: baseTags,
+    confidence: detectedBrand ? 0.85 : 0.75, // Higher confidence if brand detected
   };
 }
 
