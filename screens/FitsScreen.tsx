@@ -248,10 +248,11 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   title: {
-    fontSize: theme.typography.fontSize['3xl'],
+    fontSize: theme.typography.fontSize['4xl'],
     fontWeight: theme.typography.fontWeight.bold,
     color: theme.colors.text.primary,
-    marginBottom: theme.spacing.xs,
+    marginBottom: theme.spacing.sm,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: theme.typography.fontSize.base,
@@ -284,6 +285,7 @@ const styles = StyleSheet.create({
   },
   generateButton: {
     marginBottom: theme.spacing.xl,
+    width: '100%',
   },
   outfitsSection: {
     marginBottom: theme.spacing.xl,

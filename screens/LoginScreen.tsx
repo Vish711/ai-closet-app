@@ -539,11 +539,8 @@ interface RequirementItemProps {
 
 const RequirementItem: React.FC<RequirementItemProps> = ({ met, text }) => (
   <View style={styles.requirementItem}>
-    <Text style={[styles.requirementIcon, met ? styles.requirementIconMet : styles.requirementIconUnmet]}>
-      {met ? '✓' : '○'}
-    </Text>
     <Text style={[styles.requirementText, met ? styles.requirementTextMet : styles.requirementTextUnmet]}>
-      {text}
+      {met ? '✓' : '○'} {text}
     </Text>
   </View>
 );

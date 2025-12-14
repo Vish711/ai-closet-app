@@ -29,18 +29,23 @@ export const GlowButton: React.FC<GlowButtonProps> = ({
 }) => {
   const scale = useSharedValue(1);
 
+  const opacity = useSharedValue(1);
+
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ scale: scale.value }],
+      opacity: opacity.value,
     };
   });
 
   const handlePressIn = () => {
-    scale.value = withSpring(0.95);
+    scale.value = withSpring(0.96, { damping: 15, stiffness: 300 });
+    opacity.value = withSpring(0.9);
   };
 
   const handlePressOut = () => {
-    scale.value = withSpring(1);
+    scale.value = withSpring(1, { damping: 15, stiffness: 300 });
+    opacity.value = withSpring(1);
   };
 
   const buttonContent = (
@@ -71,12 +76,12 @@ export const GlowButton: React.FC<GlowButtonProps> = ({
 
 const styles = StyleSheet.create({
   button: {
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.xl,
     borderRadius: theme.borderRadius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: 64,
     ...theme.shadows.md,
   },
   primary: {
@@ -95,9 +100,10 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.accent.primary,
   },
   text: {
-    fontSize: theme.typography.fontSize.base,
-    fontWeight: theme.typography.fontWeight.semibold,
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: theme.typography.fontWeight.bold,
     color: theme.colors.text.primary,
+    letterSpacing: 0.5,
   },
   primaryText: {
     color: theme.colors.background.primary,

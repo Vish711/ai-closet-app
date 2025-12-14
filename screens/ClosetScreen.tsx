@@ -130,9 +130,10 @@ const styles = StyleSheet.create({
     marginBottom: appTheme.spacing.md,
   },
   title: {
-    fontSize: appTheme.typography.fontSize['2xl'],
+    fontSize: appTheme.typography.fontSize['3xl'],
     fontWeight: appTheme.typography.fontWeight.bold,
     color: appTheme.colors.text.primary,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: appTheme.typography.fontSize.sm,
@@ -145,12 +146,14 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     backgroundColor: appTheme.colors.background.tertiary,
-    borderRadius: appTheme.borderRadius.md,
-    padding: appTheme.spacing.md,
+    borderRadius: appTheme.borderRadius.lg,
+    padding: appTheme.spacing.lg,
     color: appTheme.colors.text.primary,
-    marginBottom: appTheme.spacing.md,
-    borderWidth: 1,
+    marginBottom: appTheme.spacing.lg,
+    borderWidth: 2,
     borderColor: appTheme.colors.border.secondary,
+    fontSize: appTheme.typography.fontSize.lg,
+    minHeight: 56,
   },
   filters: {
     marginBottom: appTheme.spacing.md,

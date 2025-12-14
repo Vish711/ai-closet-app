@@ -17,9 +17,9 @@ const getApiBaseUrl = (): string => {
         if (envApiUrl) {
           return envApiUrl;
         }
-        // Default: use Render backend for GitHub Pages
-        // Users can override in settings if needed
-        return 'https://ai-closet-backend.onrender.com/api';
+        // Default: users must configure backend URL in settings
+        // For now, return empty string so users are prompted to configure
+        return '';
       }
     }
     // Other production environments

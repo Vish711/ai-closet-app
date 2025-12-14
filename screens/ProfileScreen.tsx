@@ -237,9 +237,10 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
   },
   title: {
-    fontSize: theme.typography.fontSize['2xl'],
+    fontSize: theme.typography.fontSize['3xl'],
     fontWeight: theme.typography.fontWeight.bold,
     color: theme.colors.text.primary,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: theme.typography.fontSize.sm,
@@ -250,10 +251,10 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xl,
   },
   label: {
-    fontSize: theme.typography.fontSize.base,
-    fontWeight: theme.typography.fontWeight.semibold,
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: theme.typography.fontWeight.bold,
     color: theme.colors.text.primary,
-    marginBottom: theme.spacing.xs,
+    marginBottom: theme.spacing.md,
   },
   hint: {
     fontSize: theme.typography.fontSize.sm,
@@ -262,12 +263,13 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: theme.colors.background.tertiary,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.lg,
     color: theme.colors.text.primary,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: theme.colors.border.secondary,
-    fontSize: theme.typography.fontSize.base,
+    fontSize: theme.typography.fontSize.lg,
+    minHeight: 56,
   },
   chipRow: {
     flexDirection: 'row',
@@ -275,8 +277,9 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.sm,
   },
   saveButton: {
-    marginTop: theme.spacing.lg,
+    marginTop: theme.spacing.xl,
     marginBottom: theme.spacing.xl,
+    width: '100%',
   },
   infoSection: {
     marginTop: theme.spacing.xl,

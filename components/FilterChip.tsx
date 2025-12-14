@@ -25,11 +25,11 @@ export const FilterChip: React.FC<FilterChipProps> = ({ label, active, onPress }
   });
 
   const handlePressIn = () => {
-    scale.value = withSpring(0.95);
+    scale.value = withSpring(0.96, { damping: 15, stiffness: 300 });
   };
 
   const handlePressOut = () => {
-    scale.value = withSpring(1);
+    scale.value = withSpring(1, { damping: 15, stiffness: 300 });
   };
 
   return (
@@ -49,14 +49,15 @@ export const FilterChip: React.FC<FilterChipProps> = ({ label, active, onPress }
 
 const styles = StyleSheet.create({
   chip: {
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
     borderRadius: theme.borderRadius.pill,
     backgroundColor: theme.colors.background.tertiary,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: theme.colors.border.secondary,
     marginRight: theme.spacing.sm,
     marginBottom: theme.spacing.sm,
+    minHeight: 44,
   },
   activeChip: {
     borderColor: theme.colors.accent.primary,
@@ -64,9 +65,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   text: {
-    fontSize: theme.typography.fontSize.sm,
+    fontSize: theme.typography.fontSize.base,
     color: theme.colors.text.secondary,
-    fontWeight: theme.typography.fontWeight.medium,
+    fontWeight: theme.typography.fontWeight.semibold,
   },
   activeText: {
     color: theme.colors.accent.primary,
