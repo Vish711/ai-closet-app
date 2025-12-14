@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: ai-closet-backend
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_PATH
+        value: /opt/render/project/src/data/closet.db
+      - key: NODE_ENV
+        value: production
+

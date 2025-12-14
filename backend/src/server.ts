@@ -13,7 +13,10 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DB_PATH = process.env.DATABASE_PATH || './data/closet.db';
+// Use absolute path for production, relative for development
+const DB_PATH = process.env.DATABASE_PATH || (process.env.NODE_ENV === 'production' 
+  ? '/opt/render/project/src/data/closet.db' 
+  : './data/closet.db');
 
 // CORS configuration - Allow all Expo connections
 const corsOrigins = process.env.CORS_ORIGINS
