@@ -102,9 +102,19 @@ export async function initDatabase(dbPath: string): Promise<Database> {
         CREATE INDEX IF NOT EXISTS idx_calendar_user ON calendar_entries(userId);
       `;
 
+      if (!db) {
+        reject(new Error('Database connection failed'));
+        return;
+      }
+
       db.exec(createTables, (err) => {
         if (err) {
           reject(err);
+          return;
+        }
+
+        if (!db) {
+          reject(new Error('Database connection lost'));
           return;
         }
 
@@ -112,25 +122,37 @@ export async function initDatabase(dbPath: string): Promise<Database> {
         const database: Database = {
           run: (sql: string, params: any[] = []) => {
             return new Promise((resolve, reject) => {
-              db!.run(sql, params, function(err) {
+              if (!db) {
+                reject(new Error('Database not initialized'));
+                return;
+              }
+              db.run(sql, params, function(err) {
                 if (err) reject(err);
                 else resolve({ lastID: this.lastID, changes: this.changes });
               });
             });
           },
           get: <T>(sql: string, params: any[] = []) => {
-            return new Promise((resolve, reject) => {
-              db!.get(sql, params, (err, row) => {
+            return new Promise<T | undefined>((resolve, reject) => {
+              if (!db) {
+                reject(new Error('Database not initialized'));
+                return;
+              }
+              db.get(sql, params, (err, row) => {
                 if (err) reject(err);
-                else resolve(row as T);
+                else resolve(row as T | undefined);
               });
             });
           },
           all: <T>(sql: string, params: any[] = []) => {
-            return new Promise((resolve, reject) => {
-              db!.all(sql, params, (err, rows) => {
+            return new Promise<T[]>((resolve, reject) => {
+              if (!db) {
+                reject(new Error('Database not initialized'));
+                return;
+              }
+              db.all(sql, params, (err, rows) => {
                 if (err) reject(err);
-                else resolve(rows as T[]);
+                else resolve((rows || []) as T[]);
               });
             });
           },
@@ -172,21 +194,29 @@ export function getDatabase(): Database {
       });
     },
     get: <T>(sql: string, params: any[] = []) => {
-      return new Promise((resolve, reject) => {
-        db!.get(sql, params, (err, row) => {
+      return new Promise<T | undefined>((resolve, reject) => {
+        if (!db) {
+          reject(new Error('Database not initialized'));
+          return;
+        }
+        db.get(sql, params, (err, row) => {
           if (err) reject(err);
-          else resolve(row as T);
+          else resolve(row as T | undefined);
         });
       });
     },
     all: <T>(sql: string, params: any[] = []) => {
-      return new Promise((resolve, reject) => {
-        db!.all(sql, params, (err, rows) => {
+      return new Promise<T[]>((resolve, reject) => {
+        if (!db) {
+          reject(new Error('Database not initialized'));
+          return;
+        }
+        db.all(sql, params, (err, rows) => {
           if (err) reject(err);
-          else resolve(rows as T[]);
+          else resolve((rows || []) as T[]);
         });
       });
-      },
+    },
     close: () => {
       return new Promise((resolve, reject) => {
         if (!db) {

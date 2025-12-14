@@ -95,14 +95,15 @@ async function startServer() {
     await initDatabase(DB_PATH);
     console.log('Database initialized successfully');
 
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
-      console.log(`📊 Health check: http://localhost:${PORT}/health`);
-      console.log(`🔐 Auth endpoints: http://localhost:${PORT}/api/auth`);
-      console.log(`👕 Wardrobe endpoints: http://localhost:${PORT}/api/wardrobe`);
+    const port = typeof PORT === 'string' ? parseInt(PORT, 10) : PORT;
+    app.listen(port, '0.0.0.0', () => {
+      console.log(`🚀 Server running on http://localhost:${port}`);
+      console.log(`📊 Health check: http://localhost:${port}/health`);
+      console.log(`🔐 Auth endpoints: http://localhost:${port}/api/auth`);
+      console.log(`👕 Wardrobe endpoints: http://localhost:${port}/api/wardrobe`);
       console.log(`\n💡 To connect from mobile devices:`);
       console.log(`   1. Find your IP: ipconfig (Windows) or ifconfig (Mac/Linux)`);
-      console.log(`   2. Use: http://YOUR_IP:${PORT}/api`);
+      console.log(`   2. Use: http://YOUR_IP:${port}/api`);
       console.log(`   3. Update API URL in app settings (Profile → Backend Server URL)\n`);
     });
   } catch (error) {
