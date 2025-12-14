@@ -89,13 +89,19 @@ class ApiService {
   }
 
   getApiUrl(): string {
-    // Check for updated URL in localStorage
+    // Check for updated URL in localStorage first
     if (typeof localStorage !== 'undefined') {
       const stored = localStorage.getItem('api_base_url');
-      if (stored) {
+      if (stored && stored.trim() !== '') {
         this.apiBaseUrl = stored;
         return stored;
       }
+    }
+    // If no stored URL, use the default from getApiBaseUrl()
+    // Re-evaluate in case we're in production now
+    const defaultUrl = getApiBaseUrl();
+    if (defaultUrl && defaultUrl.trim() !== '') {
+      this.apiBaseUrl = defaultUrl;
     }
     return this.apiBaseUrl;
   }
@@ -123,6 +129,13 @@ class ApiService {
 
     // Get current API URL (may have been updated)
     const currentApiUrl = this.getApiUrl();
+
+    // Check if API URL is configured
+    if (!currentApiUrl || currentApiUrl.trim() === '') {
+      return { 
+        error: 'Backend server URL not configured. Please set it in Profile → Settings → Backend Server URL' 
+      };
+    }
 
     try {
       const response = await fetch(`${currentApiUrl}${endpoint}`, {
@@ -157,15 +170,28 @@ class ApiService {
       return { data };
     } catch (error: any) {
       console.error('API request error:', error);
+      console.error('API URL attempted:', currentApiUrl);
       
       // More specific error messages
       if (error.message === 'Network request failed' || error.message === 'Failed to fetch') {
+        // Check if it's Render.com backend
+        if (currentApiUrl.includes('onrender.com')) {
+          return { 
+            error: 'Cannot connect to Render.com backend. The service may be sleeping (free tier). Please wait 30-60 seconds and try again, or check your Render.com dashboard.' 
+          };
+        }
+        // Check if it's localhost
+        if (currentApiUrl.includes('localhost') || currentApiUrl.includes('127.0.0.1')) {
+          return { 
+            error: 'Cannot connect to local backend. Please make sure the backend is running: cd backend && npm run dev' 
+          };
+        }
         return { 
-          error: 'Cannot connect to server. Please make sure the backend is running on http://localhost:3000' 
+          error: `Cannot connect to backend at ${currentApiUrl}. Please check the URL in Profile → Settings.` 
         };
       }
       
-      return { error: 'Network error. Please check your connection and ensure the backend server is running.' };
+      return { error: `Network error connecting to ${currentApiUrl}. Please check your connection and ensure the backend server is running.` };
     }
   }
 
