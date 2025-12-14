@@ -61,16 +61,22 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/wardrobe', wardrobeRoutes);
 
-// 404 handler for undefined routes
+// 404 handler for undefined routes - must return JSON
 app.use((req: express.Request, res: express.Response) => {
+  // Check if this might be a method mismatch (405)
+  const method = req.method;
+  const path = req.path;
+  
+  // If it's a known path but wrong method, return 405
+  const knownPaths = ['/api/auth/signup', '/api/auth/login', '/api/auth/verify'];
+  if (knownPaths.includes(path)) {
+    res.status(405).json({ 
+      error: `Method ${method} not allowed for ${path}. Please check your request.` 
+    });
+    return;
+  }
+  
   res.status(404).json({ error: `Route not found: ${req.method} ${req.path}` });
-});
-
-// 405 handler for method not allowed (before error handler)
-app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
-  // This will only be reached if no route matched
-  // Express will handle 405 automatically, but we'll add a custom handler
-  next();
 });
 
 // Error handling middleware
