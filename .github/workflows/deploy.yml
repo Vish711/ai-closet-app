@@ -26,14 +26,8 @@ jobs:
 
       - name: Build web app
         run: |
-          echo "Building web app..."
-          npx expo export:web 2>&1 || {
-            echo "First attempt failed, trying alternative..."
-            npx expo export --platform web 2>&1 || {
-              echo "Alternative failed, trying with npm script..."
-              npm run build:web 2>&1
-            }
-          }
+          echo "Building web app with Webpack bundler..."
+          npm run build:web
         env:
           EXPO_PUBLIC_API_URL: ${{ secrets.API_URL }}
 
