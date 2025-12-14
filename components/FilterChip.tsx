@@ -11,11 +11,12 @@ interface FilterChipProps {
   label: string;
   active: boolean;
   onPress: () => void;
+  count?: number;
 }
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
-export const FilterChip: React.FC<FilterChipProps> = ({ label, active, onPress }) => {
+export const FilterChip: React.FC<FilterChipProps> = ({ label, active, onPress, count }) => {
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -42,6 +43,11 @@ export const FilterChip: React.FC<FilterChipProps> = ({ label, active, onPress }
     >
       <Text style={[styles.text, active && styles.activeText]}>
         {label}
+        {count !== undefined && (
+          <Text style={[styles.count, active && styles.activeCount]}>
+            {' · '}{count}
+          </Text>
+        )}
       </Text>
     </AnimatedTouchable>
   );
@@ -72,6 +78,14 @@ const styles = StyleSheet.create({
   activeText: {
     color: theme.colors.accent.primary,
     fontWeight: theme.typography.fontWeight.semibold,
+  },
+  count: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.tertiary,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
+  activeCount: {
+    color: theme.colors.accent.secondary,
   },
 });
 
