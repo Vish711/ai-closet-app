@@ -96,7 +96,7 @@ Return ONLY a valid JSON object with this exact structure:
       throw new Error(`OpenAI API error: ${error}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as any;
     const content = data.choices[0]?.message?.content;
     
     if (!content) {
@@ -164,7 +164,7 @@ async function analyzeWithGoogleVision(imageBase64: string): Promise<ImageAnalys
       throw new Error(`Google Vision API error: ${error}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as any;
     const annotations = data.responses[0];
 
     // Extract category from labels
