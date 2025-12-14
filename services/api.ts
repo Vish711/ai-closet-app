@@ -17,9 +17,9 @@ const getApiBaseUrl = (): string => {
         if (envApiUrl) {
           return envApiUrl;
         }
-        // Default: users must configure backend URL in settings
-        // For now, return empty string so users are prompted to configure
-        return '';
+        // Default: use Render backend for GitHub Pages
+        // Users can override in settings if needed
+        return 'https://ai-closet-backend.onrender.com/api';
       }
     }
     // Other production environments
@@ -151,12 +151,6 @@ class ApiService {
         }
         if (response.status === 400) {
           return { error: data.error || 'Invalid input. Please check your information.' };
-        }
-        if (response.status === 405) {
-          return { error: data.error || 'Method not allowed. Please check that the backend server is running and the API URL is correct.' };
-        }
-        if (response.status === 404) {
-          return { error: data.error || 'Endpoint not found. Please check that the backend server is running and the API URL is correct.' };
         }
         return { error: data.error || `Request failed (${response.status})` };
       }

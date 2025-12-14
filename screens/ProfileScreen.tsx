@@ -90,39 +90,42 @@ export const ProfileScreen: React.FC = () => {
         </View>
       </View>
 
-      {Platform.OS !== 'web' && (
-        <View style={styles.section}>
-          <View style={styles.labelRow}>
-            <Text style={styles.label}>Backend Server URL</Text>
-            <TouchableOpacity onPress={() => setShowApiSettings(!showApiSettings)}>
-              <Text style={styles.toggleText}>
-                {showApiSettings ? 'Hide' : 'Show'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          {showApiSettings && (
-            <>
-              <Text style={styles.hint}>
-                Enter your computer's IP address where the backend is running.
-                Example: http://192.168.1.100:3000/api
-              </Text>
-              <TextInput
-                style={styles.input}
-                value={apiUrl}
-                onChangeText={setApiUrl}
-                placeholder="http://192.168.1.100:3000/api"
-                placeholderTextColor={theme.colors.text.tertiary}
-                autoCapitalize="none"
-              />
-              <GlowButton
-                title="Save API URL"
-                onPress={() => {
-                  setApiBaseUrl(apiUrl);
-                  Alert.alert('Saved', 'API URL updated. The app will now use this URL for all requests.');
-                }}
-                variant="secondary"
-                style={styles.saveApiButton}
-              />
+      <View style={styles.section}>
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>Backend Server URL</Text>
+          <TouchableOpacity onPress={() => setShowApiSettings(!showApiSettings)}>
+            <Text style={styles.toggleText}>
+              {showApiSettings ? 'Hide' : 'Show'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {showApiSettings && (
+          <>
+            <Text style={styles.hint}>
+              {Platform.OS === 'web' 
+                ? 'Enter your backend server URL. Default: https://ai-closet-backend.onrender.com/api'
+                : 'Enter your computer\'s IP address where the backend is running, or use the online backend URL.'}
+            </Text>
+            <TextInput
+              style={styles.input}
+              value={apiUrl}
+              onChangeText={setApiUrl}
+              placeholder={Platform.OS === 'web' 
+                ? 'https://ai-closet-backend.onrender.com/api'
+                : 'http://192.168.1.100:3000/api'}
+              placeholderTextColor={theme.colors.text.tertiary}
+              autoCapitalize="none"
+            />
+            <GlowButton
+              title="Save API URL"
+              onPress={() => {
+                setApiBaseUrl(apiUrl);
+                Alert.alert('Saved', 'API URL updated. The app will now use this URL for all requests.');
+              }}
+              variant="secondary"
+              style={styles.saveApiButton}
+            />
+            {Platform.OS !== 'web' && (
               <View style={styles.helpBox}>
                 <Text style={styles.helpTitle}>How to find your IP:</Text>
                 <Text style={styles.helpText}>
@@ -132,10 +135,20 @@ export const ProfileScreen: React.FC = () => {
                   Look for IPv4 Address
                 </Text>
               </View>
-            </>
-          )}
-        </View>
-      )}
+            )}
+            {Platform.OS === 'web' && (
+              <View style={styles.helpBox}>
+                <Text style={styles.helpTitle}>Online Backend:</Text>
+                <Text style={styles.helpText}>
+                  Your backend is hosted on Render.com{'\n'}
+                  Default URL: https://ai-closet-backend.onrender.com/api{'\n'}
+                  Leave empty to use default, or enter a custom URL.
+                </Text>
+              </View>
+            )}
+          </>
+        )}
+      </View>
 
       <View style={styles.section}>
         <Text style={styles.label}>Default City</Text>
