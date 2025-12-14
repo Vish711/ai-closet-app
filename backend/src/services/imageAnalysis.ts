@@ -305,22 +305,39 @@ function inferCategoryFromLabels(labels: any[], objects: any[]): string | null {
   // Score each category - prioritize objects over labels
   const categoryScores: Record<string, number> = {};
   
+  // Special handling: outerwear keywords should override tops if detected
+  const outerwearKeywords = ['jacket', 'coat', 'fleece', 'parka', 'windbreaker', 'bomber', 'blazer'];
+  const hasOuterwear = allItems.some(item => 
+    outerwearKeywords.some(kw => item.text.includes(kw)) && item.confidence > 0.6
+  );
+  
   for (const [category, config] of Object.entries(categoryKeywords)) {
     let score = 0;
     
     // First check objects (more reliable for clothing items)
     for (const item of allItems) {
-      // Objects get higher weight
+      // Objects get much higher weight (they're actual detected items)
       const isObject = objects.some((o: any) => o.name.toLowerCase() === item.text);
-      const weightMultiplier = isObject ? 2.0 : 1.0;
+      const weightMultiplier = isObject ? 3.0 : 1.0;
       
       for (const keyword of config.keywords) {
         if (item.text.includes(keyword)) {
           // Weight by confidence, category weight, and object multiplier
-          score += item.confidence * config.weight * weightMultiplier;
+          const itemScore = item.confidence * config.weight * weightMultiplier;
+          score += itemScore;
           break; // Only count once per item
         }
       }
+    }
+    
+    // Boost outerwear if outerwear keywords detected and we're scoring outerwear
+    if (category === 'outerwear' && hasOuterwear) {
+      score *= 1.5;
+    }
+    
+    // Reduce tops score if outerwear is detected (prevent confusion)
+    if (category === 'tops' && hasOuterwear) {
+      score *= 0.3;
     }
     
     categoryScores[category] = score;
@@ -373,15 +390,16 @@ function inferColorFromProperties(colors: any[], labels: any[]): string | null {
   // If no color in labels, use dominant color from image
   if (colors.length === 0) return null;
 
-  // Get top 3-5 dominant colors and analyze them
-  // Filter out white/very light colors (likely background)
+  // Get top 5-7 dominant colors and analyze them
+  // Filter out white/very light colors (likely background) but keep dark colors
   const topColors = colors
     .filter((c: any) => {
       const rgb = c.color;
       const brightness = ((rgb.red || 0) + (rgb.green || 0) + (rgb.blue || 0)) / 3;
-      return brightness < 240; // Filter out very light backgrounds
+      // Keep dark colors (likely clothing) and medium colors, filter only very light backgrounds
+      return brightness < 250; // More lenient - keep more colors
     })
-    .slice(0, 5);
+    .slice(0, 7); // Check more colors
     
   const colorScores: Record<string, number> = {};
 
@@ -393,7 +411,9 @@ function inferColorFromProperties(colors: any[], labels: any[]): string | null {
     const pixelFraction = colorData.pixelFraction || 0;
 
     // Skip very small color areas (likely noise/background)
-    if (pixelFraction < 0.08) continue; // Increased threshold
+    // But be more lenient for dark colors (they might be clothing)
+    const minFraction = brightness < 50 ? 0.05 : 0.08; // Lower threshold for dark colors
+    if (pixelFraction < minFraction) continue;
 
     const brightness = (r + g + b) / 3;
     const maxChannel = Math.max(r, g, b);
@@ -401,8 +421,10 @@ function inferColorFromProperties(colors: any[], labels: any[]): string | null {
     const saturation = maxChannel > 0 ? (maxChannel - minChannel) / maxChannel : 0;
 
     // Score each possible color match
-    if (brightness < 30) {
-      colorScores['black'] = (colorScores['black'] || 0) + pixelFraction;
+    // Black detection - be more lenient
+    if (brightness < 50 && saturation < 0.3) {
+      // Very dark, low saturation = black
+      colorScores['black'] = (colorScores['black'] || 0) + pixelFraction * 1.5; // Boost black
     } else if (brightness > 240 && Math.abs(r - g) < 20 && Math.abs(g - b) < 20) {
       colorScores['white'] = (colorScores['white'] || 0) + pixelFraction;
     } else if (Math.abs(r - g) < 30 && Math.abs(g - b) < 30 && brightness < 200) {
@@ -425,10 +447,11 @@ function inferColorFromProperties(colors: any[], labels: any[]): string | null {
         } else {
           colorScores['red'] = (colorScores['red'] || 0) + pixelFraction;
         }
-      } else if (g > r && g > b && g > 150) {
-        // Green detection - check for olive/khaki
-        if (brightness < 120 && r > 80 && b < 80) {
-          colorScores['green'] = (colorScores['green'] || 0) + pixelFraction * 1.2; // Boost olive green
+      } else if (g > r && g > b && g > 120) {
+        // Green detection - check for olive/khaki (olive has more brown/yellow)
+        if (brightness < 130 && r > 70 && b < 90 && (r + g) > (b * 2)) {
+          // Olive green - has yellow/brown tones
+          colorScores['green'] = (colorScores['green'] || 0) + pixelFraction * 1.3; // Boost olive green
         } else {
           colorScores['green'] = (colorScores['green'] || 0) + pixelFraction;
         }
@@ -474,19 +497,32 @@ function extractBrandFromText(texts: any[]): string | null {
     'old navy', 'american eagle', 'abercrombie', 'hollister', 'forever 21'
   ];
 
-  // Check all text annotations, prioritizing shorter text (logo text is usually short)
-  // Also prioritize text that appears in the upper portion of image (where logos usually are)
+  // Check all text annotations, prioritizing brand-like text
   const sortedTexts = texts
     .filter((t: any) => {
       const desc = t.description?.toLowerCase() || '';
       // Filter out very long text (likely product descriptions, not brand names)
+      // Also filter out common non-brand words
+      const nonBrandWords = ['size', 'price', 'sale', 'discount', 'free', 'shipping', 'return'];
+      if (nonBrandWords.some(word => desc.includes(word))) return false;
       return desc && desc.length > 1 && desc.length < 50;
     })
     .sort((a: any, b: any) => {
-      // Prioritize shorter text (brand names are usually short)
-      const lengthDiff = a.description.length - b.description.length;
-      if (Math.abs(lengthDiff) > 5) return lengthDiff;
-      // If similar length, check bounding box position (logos often in top area)
+      // Prioritize shorter text (brand names are usually short, 3-15 chars)
+      const aLen = a.description.length;
+      const bLen = b.description.length;
+      const aIsBrandLength = aLen >= 3 && aLen <= 15;
+      const bIsBrandLength = bLen >= 3 && bLen <= 15;
+      
+      if (aIsBrandLength && !bIsBrandLength) return -1;
+      if (!aIsBrandLength && bIsBrandLength) return 1;
+      
+      // If both are brand-length, prioritize shorter
+      if (aIsBrandLength && bIsBrandLength) {
+        return aLen - bLen;
+      }
+      
+      // Otherwise check position (logos often in top area)
       const aY = a.boundingPoly?.vertices?.[0]?.y || 9999;
       const bY = b.boundingPoly?.vertices?.[0]?.y || 9999;
       return aY - bY; // Lower Y = higher on image = more likely logo
