@@ -409,13 +409,12 @@ function inferColorFromProperties(colors: any[], labels: any[]): string | null {
     const g = rgb.green || 0;
     const b = rgb.blue || 0;
     const pixelFraction = colorData.pixelFraction || 0;
+    const brightness = (r + g + b) / 3;
 
     // Skip very small color areas (likely noise/background)
     // But be more lenient for dark colors (they might be clothing)
     const minFraction = brightness < 50 ? 0.05 : 0.08; // Lower threshold for dark colors
     if (pixelFraction < minFraction) continue;
-
-    const brightness = (r + g + b) / 3;
     const maxChannel = Math.max(r, g, b);
     const minChannel = Math.min(r, g, b);
     const saturation = maxChannel > 0 ? (maxChannel - minChannel) / maxChannel : 0;
