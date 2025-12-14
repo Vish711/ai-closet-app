@@ -498,22 +498,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: theme.spacing.xs,
   },
-  requirementIcon: {
-    fontSize: theme.typography.fontSize.base,
-    marginRight: theme.spacing.sm,
-    width: 20,
-    textAlign: 'center',
-  },
-  requirementIconMet: {
-    color: theme.colors.status.success,
-  },
-  requirementIconUnmet: {
-    color: theme.colors.text.tertiary,
-  },
   requirementText: {
     fontSize: theme.typography.fontSize.xs,
     color: theme.colors.text.tertiary,
-    flex: 1,
+    marginLeft: theme.spacing.sm,
   },
   requirementTextMet: {
     color: theme.colors.status.success,

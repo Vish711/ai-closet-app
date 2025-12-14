@@ -138,15 +138,15 @@ class ApiService {
         data = await response.json();
       } else {
         const text = await response.text();
-        // Extract error message from HTML if present
+        // Extract error message from HTML if present, with proper null checks
         let errorMessage = text || 'Request failed';
         if (text && (text.includes('<title>') || text.includes('<h1>'))) {
-          // Try to extract error from HTML with proper null checks
+          // Try to extract error from HTML - check both match and capture group exist
           const titleMatch = text.match(/<title>(.*?)<\/title>/i);
           const h1Match = text.match(/<h1>(.*?)<\/h1>/i);
-          if (titleMatch && titleMatch[1]) {
+          if (titleMatch && titleMatch.length > 1 && titleMatch[1]) {
             errorMessage = titleMatch[1].trim();
-          } else if (h1Match && h1Match[1]) {
+          } else if (h1Match && h1Match.length > 1 && h1Match[1]) {
             errorMessage = h1Match[1].trim();
           } else {
             // Fallback: use status text if HTML parsing fails
