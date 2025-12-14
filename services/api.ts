@@ -140,16 +140,16 @@ class ApiService {
         const text = await response.text();
         // Extract error message from HTML if present
         let errorMessage = text || 'Request failed';
-        if (text.includes('<title>') || text.includes('<h1>')) {
-          // Try to extract error from HTML
+        if (text && (text.includes('<title>') || text.includes('<h1>'))) {
+          // Try to extract error from HTML with proper null checks
           const titleMatch = text.match(/<title>(.*?)<\/title>/i);
           const h1Match = text.match(/<h1>(.*?)<\/h1>/i);
-          if (titleMatch) {
+          if (titleMatch && titleMatch[1]) {
             errorMessage = titleMatch[1].trim();
-          } else if (h1Match) {
+          } else if (h1Match && h1Match[1]) {
             errorMessage = h1Match[1].trim();
           } else {
-            // Fallback: use status text
+            // Fallback: use status text if HTML parsing fails
             errorMessage = `${response.status} ${response.statusText || 'Error'}`;
           }
         }
@@ -288,4 +288,3 @@ class ApiService {
 }
 
 export const apiService = new ApiService();
-
