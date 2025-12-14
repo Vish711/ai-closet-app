@@ -498,10 +498,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: theme.spacing.xs,
   },
+  requirementIcon: {
+    fontSize: theme.typography.fontSize.base,
+    color: theme.colors.status.success,
+    marginRight: theme.spacing.sm,
+    width: 20,
+    textAlign: 'center',
+  },
   requirementText: {
     fontSize: theme.typography.fontSize.xs,
     color: theme.colors.text.tertiary,
-    marginLeft: theme.spacing.sm,
+    flex: 1,
   },
   requirementTextMet: {
     color: theme.colors.status.success,
@@ -539,8 +546,11 @@ interface RequirementItemProps {
 
 const RequirementItem: React.FC<RequirementItemProps> = ({ met, text }) => (
   <View style={styles.requirementItem}>
+    <Text style={styles.requirementIcon}>
+      {met ? '✓' : '○'}
+    </Text>
     <Text style={[styles.requirementText, met ? styles.requirementTextMet : styles.requirementTextUnmet]}>
-      {met ? '✓' : '○'} {text}
+      {text}
     </Text>
   </View>
 );

@@ -138,7 +138,22 @@ class ApiService {
         data = await response.json();
       } else {
         const text = await response.text();
-        return { error: text || 'Request failed' };
+        // Extract error message from HTML if present
+        let errorMessage = text || 'Request failed';
+        if (text.includes('<title>') || text.includes('<h1>')) {
+          // Try to extract error from HTML
+          const titleMatch = text.match(/<title>(.*?)<\/title>/i);
+          const h1Match = text.match(/<h1>(.*?)<\/h1>/i);
+          if (titleMatch) {
+            errorMessage = titleMatch[1].trim();
+          } else if (h1Match) {
+            errorMessage = h1Match[1].trim();
+          } else {
+            // Fallback: use status text
+            errorMessage = `${response.status} ${response.statusText || 'Error'}`;
+          }
+        }
+        return { error: errorMessage };
       }
 
       if (!response.ok) {
