@@ -45,36 +45,39 @@ export async function extractFromUrl(url: string): Promise<ExtractedContent> {
 
 /**
  * Extract content from URL in web environment
+ * Uses backend proxy to bypass CORS limitations
  */
 async function extractFromUrlWeb(url: string): Promise<ExtractedContent> {
   try {
-    // Try to fetch the URL
-    // Note: This will fail for most sites due to CORS
-    // In production, use a backend proxy or service like:
-    // - ScraperAPI
-    // - Bright Data
-    // - Custom backend endpoint
+    // Get the API base URL from the api service
+    // Use dynamic import to avoid circular dependency
+    const apiModule = await import('./api');
+    const apiBaseUrl = apiModule.getApiBaseUrlValue() || 'https://ai-closet-backend.onrender.com/api';
     
-    const response = await fetch(url, {
-      mode: 'cors',
+    // Remove /api suffix if present, then add /api/extract/extract
+    const baseUrl = apiBaseUrl.replace(/\/api$/, '');
+    const extractUrl = `${baseUrl}/api/extract/extract`;
+    
+    // Use backend proxy to fetch and parse the URL (bypasses CORS)
+    const response = await fetch(extractUrl, {
+      method: 'POST',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ url }),
     });
 
     if (!response.ok) {
-      // If direct fetch fails (CORS), try alternative methods
-      return await extractFromUrlFallback(url);
+      const errorData = await response.json().catch(() => ({ error: 'Failed to extract' }));
+      throw new Error(errorData.error || `Server returned ${response.status}`);
     }
 
-    const html = await response.text();
-    return parseHtml(html, url);
+    const extracted = await response.json();
+    return extracted;
   } catch (error: any) {
-    // CORS or other fetch error - use fallback
-    if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
-      return await extractFromUrlFallback(url);
-    }
-    throw error;
+    console.error('Backend extraction error:', error);
+    // Fallback if backend is unavailable
+    return await extractFromUrlFallback(url);
   }
 }
 

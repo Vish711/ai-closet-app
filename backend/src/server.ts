@@ -8,6 +8,7 @@ import dotenv from 'dotenv';
 import { initDatabase } from './db/database';
 import authRoutes from './routes/auth';
 import wardrobeRoutes from './routes/wardrobe';
+import extractRoutes from './routes/extract';
 
 dotenv.config();
 
@@ -63,6 +64,7 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/wardrobe', wardrobeRoutes);
+app.use('/api/extract', extractRoutes);
 
 // 404 handler for undefined routes - must return JSON
 app.use((req: express.Request, res: express.Response) => {
