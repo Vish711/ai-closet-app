@@ -23,7 +23,7 @@ const getApiBaseUrl = (): string => {
     }
     // Other production environments
     const envApiUrl = process.env.REACT_APP_API_URL || process.env.EXPO_PUBLIC_API_URL;
-    return envApiUrl || 'https://your-production-api.com/api';
+    return envApiUrl || 'https://ai-closet-backend.onrender.com/api';
   }
   
   // Development - check for custom URL (for mobile devices)
