@@ -26,21 +26,46 @@ jobs:
 
       - name: Build web app
         run: |
-          npm run build:web || npx expo export --platform web
+          echo "Building web app..."
+          npx expo export:web 2>&1 || {
+            echo "First attempt failed, trying alternative..."
+            npx expo export --platform web 2>&1 || {
+              echo "Alternative failed, trying with npm script..."
+              npm run build:web 2>&1
+            }
+          }
         env:
           EXPO_PUBLIC_API_URL: ${{ secrets.API_URL }}
 
       - name: Verify build output
         run: |
-          echo "Checking for web-build directory..."
-          ls -la || echo "Current directory listing"
+          echo "=== Current directory ==="
+          ls -la
+          echo ""
+          echo "=== Checking for web-build ==="
           if [ -d "web-build" ]; then
-            echo "web-build directory found!"
+            echo "✅ web-build directory found!"
             ls -la web-build
+            echo ""
+            echo "=== Checking for index.html ==="
+            if [ -f "web-build/index.html" ]; then
+              echo "✅ index.html found!"
+            else
+              echo "❌ index.html not found in web-build"
+            fi
           else
-            echo "ERROR: web-build directory not found!"
-            echo "Checking for dist directory..."
-            ls -la dist || echo "No dist directory either"
+            echo "❌ web-build directory not found!"
+            echo ""
+            echo "=== Checking for dist ==="
+            if [ -d "dist" ]; then
+              echo "✅ dist directory found!"
+              ls -la dist
+            else
+              echo "❌ dist directory not found either"
+            fi
+            echo ""
+            echo "=== Checking for .expo ==="
+            ls -la .expo 2>/dev/null || echo "No .expo directory"
             exit 1
           fi
 
