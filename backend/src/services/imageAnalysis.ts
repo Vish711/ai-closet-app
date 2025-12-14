@@ -173,9 +173,9 @@ async function analyzeWithGoogleVision(imageBase64: string): Promise<ImageAnalys
     const objects = annotations.localizedObjectAnnotations || [];
     const category = inferCategoryFromLabels(labels, objects);
     
-    // Extract color from image properties
+    // Extract color from image properties - use top 3 dominant colors
     const colors = annotations.imagePropertiesAnnotation?.dominantColors?.colors || [];
-    const color = inferColorFromProperties(colors);
+    const color = inferColorFromProperties(colors, labels);
     
     // Extract brand from text detection
     const texts = annotations.textAnnotations || [];
@@ -188,11 +188,14 @@ async function analyzeWithGoogleVision(imageBase64: string): Promise<ImageAnalys
       .slice(0, 5);
     const tags = sortedLabels.map((l: any) => l.description.toLowerCase());
 
+    // Infer season from category, color, and labels
+    const season = inferSeason(category, color, labels);
+
     return {
       category,
       color,
       brand,
-      season: 'all-season', // Google Vision doesn't detect season
+      season,
       tags,
       confidence: 0.85,
     };
@@ -325,73 +328,210 @@ function inferCategoryFromLabels(labels: any[], objects: any[]): string | null {
 }
 
 /**
- * Helper: Infer color from Google Vision color properties
+ * Helper: Infer color from Google Vision color properties and labels
  */
-function inferColorFromProperties(colors: any[]): string | null {
+function inferColorFromProperties(colors: any[], labels: any[]): string | null {
+  // First, check labels for explicit color mentions (most reliable)
+  const labelText = labels.map((l: any) => l.description.toLowerCase()).join(' ');
+  const colorKeywords: Record<string, string[]> = {
+    black: ['black', 'dark', 'ebony'],
+    white: ['white', 'ivory', 'cream'],
+    gray: ['gray', 'grey', 'silver', 'charcoal'],
+    navy: ['navy', 'navy blue', 'dark blue'],
+    blue: ['blue', 'azure', 'cobalt'],
+    red: ['red', 'crimson', 'scarlet', 'burgundy'],
+    green: ['green', 'emerald', 'olive', 'forest', 'khaki', 'sage'],
+    yellow: ['yellow', 'gold', 'amber'],
+    orange: ['orange', 'coral', 'peach'],
+    pink: ['pink', 'rose', 'salmon'],
+    purple: ['purple', 'violet', 'lavender'],
+    brown: ['brown', 'tan', 'beige', 'taupe', 'camel'],
+    beige: ['beige', 'tan', 'nude', 'cream'],
+    multicolor: ['multicolor', 'multi-color', 'patterned', 'print'],
+  };
+
+  for (const [color, keywords] of Object.entries(colorKeywords)) {
+    if (keywords.some(keyword => labelText.includes(keyword))) {
+      return color;
+    }
+  }
+
+  // If no color in labels, use dominant color from image
   if (colors.length === 0) return null;
 
-  // Get the most dominant color
-  const dominantColor = colors[0];
-  const rgb = dominantColor.color;
-  const r = rgb.red || 0;
-  const g = rgb.green || 0;
-  const b = rgb.blue || 0;
+  // Get top 2-3 dominant colors and analyze them
+  const topColors = colors.slice(0, 3);
+  const colorScores: Record<string, number> = {};
 
-  // Convert RGB to color name using simple thresholds
-  const brightness = (r + g + b) / 3;
-  
-  // Black/white/gray detection
-  if (brightness < 30) return 'black';
-  if (brightness > 240 && Math.abs(r - g) < 20 && Math.abs(g - b) < 20) return 'white';
-  if (Math.abs(r - g) < 30 && Math.abs(g - b) < 30 && brightness < 200) return 'gray';
-  
-  // Color detection based on dominant channel
-  const maxChannel = Math.max(r, g, b);
-  const minChannel = Math.min(r, g, b);
-  const saturation = maxChannel > 0 ? (maxChannel - minChannel) / maxChannel : 0;
-  
-  if (saturation < 0.2) {
-    // Low saturation = gray/beige/brown
-    if (brightness < 150) return 'brown';
-    if (brightness < 200) return 'beige';
-    return 'gray';
+  for (const colorData of topColors) {
+    const rgb = colorData.color;
+    const r = rgb.red || 0;
+    const g = rgb.green || 0;
+    const b = rgb.blue || 0;
+    const pixelFraction = colorData.pixelFraction || 0;
+
+    // Skip very small color areas (likely background)
+    if (pixelFraction < 0.05) continue;
+
+    const brightness = (r + g + b) / 3;
+    const maxChannel = Math.max(r, g, b);
+    const minChannel = Math.min(r, g, b);
+    const saturation = maxChannel > 0 ? (maxChannel - minChannel) / maxChannel : 0;
+
+    // Score each possible color match
+    if (brightness < 30) {
+      colorScores['black'] = (colorScores['black'] || 0) + pixelFraction;
+    } else if (brightness > 240 && Math.abs(r - g) < 20 && Math.abs(g - b) < 20) {
+      colorScores['white'] = (colorScores['white'] || 0) + pixelFraction;
+    } else if (Math.abs(r - g) < 30 && Math.abs(g - b) < 30 && brightness < 200) {
+      colorScores['gray'] = (colorScores['gray'] || 0) + pixelFraction;
+    } else if (saturation < 0.2) {
+      if (brightness < 150) {
+        colorScores['brown'] = (colorScores['brown'] || 0) + pixelFraction;
+      } else if (brightness < 200) {
+        colorScores['beige'] = (colorScores['beige'] || 0) + pixelFraction;
+      } else {
+        colorScores['gray'] = (colorScores['gray'] || 0) + pixelFraction;
+      }
+    } else {
+      // High saturation colors
+      if (r > g && r > b && r > 150) {
+        if (g > 100 && b < 100) {
+          colorScores['orange'] = (colorScores['orange'] || 0) + pixelFraction;
+        } else if (b > 100) {
+          colorScores['pink'] = (colorScores['pink'] || 0) + pixelFraction;
+        } else {
+          colorScores['red'] = (colorScores['red'] || 0) + pixelFraction;
+        }
+      } else if (g > r && g > b && g > 150) {
+        // Green detection - check for olive/khaki
+        if (brightness < 120 && r > 80 && b < 80) {
+          colorScores['green'] = (colorScores['green'] || 0) + pixelFraction * 1.2; // Boost olive green
+        } else {
+          colorScores['green'] = (colorScores['green'] || 0) + pixelFraction;
+        }
+      } else if (b > r && b > g && b > 150) {
+        if (brightness < 100) {
+          colorScores['navy'] = (colorScores['navy'] || 0) + pixelFraction;
+        } else {
+          colorScores['blue'] = (colorScores['blue'] || 0) + pixelFraction;
+        }
+      } else if (r > 100 && g > 100 && b < 100) {
+        colorScores['yellow'] = (colorScores['yellow'] || 0) + pixelFraction;
+      } else if (r > 100 && b > 100 && g < 100) {
+        colorScores['purple'] = (colorScores['purple'] || 0) + pixelFraction;
+      }
+    }
   }
-  
-  // High saturation colors
-  if (r > g && r > b && r > 150) {
-    if (g > 100 && b < 100) return 'orange';
-    if (b > 100) return 'pink';
-    return 'red';
+
+  // Return color with highest score
+  let maxScore = 0;
+  let bestColor: string | null = null;
+  for (const [color, score] of Object.entries(colorScores)) {
+    if (score > maxScore) {
+      maxScore = score;
+      bestColor = color;
+    }
   }
-  if (g > r && g > b && g > 150) return 'green';
-  if (b > r && b > g && b > 150) {
-    if (brightness < 100) return 'navy';
-    return 'blue';
-  }
-  if (r > 100 && g > 100 && b < 100) return 'yellow';
-  if (r > 100 && b > 100 && g < 100) return 'purple';
-  
-  return null;
+
+  return bestColor;
 }
 
 /**
  * Helper: Extract brand from text detection
  */
 function extractBrandFromText(texts: any[]): string | null {
+  // Expanded brand list with common variations
   const brandKeywords = [
-    'nike', 'adidas', 'puma', 'gymshark', 'lululemon', 'zara', 'h&m', 'uniqlo',
-    'gap', 'levi', 'calvin klein', 'tommy hilfiger', 'ralph lauren', 'champion'
+    'nike', 'adidas', 'puma', 'gymshark', 'lululemon', 'zara', 'h&m', 'h and m', 'uniqlo',
+    'gap', 'levi', 'levis', 'calvin klein', 'tommy hilfiger', 'ralph lauren', 'champion',
+    'columbia', 'north face', 'patagonia', 'under armour', 'reebok', 'new balance',
+    'vans', 'converse', 'fila', 'asics', 'brooks', 'saucony', 'mizuno', 'adidas',
+    'gucci', 'prada', 'versace', 'armani', 'hugo boss', 'burberry', 'coach',
+    'michael kors', 'kate spade', 'tory burch', 'banana republic', 'j.crew',
+    'old navy', 'american eagle', 'abercrombie', 'hollister', 'forever 21'
   ];
 
-  for (const text of texts) {
+  // Check all text annotations, prioritizing longer/more complete text
+  const sortedTexts = texts
+    .filter((t: any) => t.description && t.description.length > 1)
+    .sort((a: any, b: any) => b.description.length - a.description.length);
+
+  for (const text of sortedTexts) {
     const textLower = text.description?.toLowerCase() || '';
+    
+    // Check for exact brand matches first (more reliable)
     for (const brand of brandKeywords) {
-      if (textLower.includes(brand)) {
-        return brand.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      // Match whole word or at start/end of text
+      const brandRegex = new RegExp(`\\b${brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      if (brandRegex.test(textLower)) {
+        // Format brand name properly
+        if (brand === 'h&m' || brand === 'h and m') return 'H&M';
+        if (brand === 'levi' || brand === 'levis') return 'Levi\'s';
+        return brand.split(' ').map(w => {
+          if (w === 'and') return '&';
+          return w.charAt(0).toUpperCase() + w.slice(1);
+        }).join(' ');
       }
     }
   }
 
   return null;
+}
+
+/**
+ * Helper: Infer season from category, color, and labels
+ */
+function inferSeason(category: string | null, color: string | null, labels: any[]): string {
+  const labelText = labels.map((l: any) => l.description.toLowerCase()).join(' ');
+  
+  // Explicit season mentions in labels
+  if (labelText.includes('winter') || labelText.includes('warm') || labelText.includes('insulated')) {
+    return 'winter';
+  }
+  if (labelText.includes('summer') || labelText.includes('lightweight') || labelText.includes('breathable')) {
+    return 'summer';
+  }
+  if (labelText.includes('spring')) {
+    return 'spring';
+  }
+  if (labelText.includes('fall') || labelText.includes('autumn')) {
+    return 'fall';
+  }
+
+  // Infer from category
+  if (category === 'outerwear') {
+    // Outerwear is typically winter, unless it's a light jacket
+    if (labelText.includes('jacket') && !labelText.includes('light')) {
+      return 'winter';
+    }
+    if (labelText.includes('windbreaker') || labelText.includes('rain')) {
+      return 'spring';
+    }
+    return 'winter';
+  }
+
+  // Infer from color
+  if (color === 'black' || color === 'navy' || color === 'brown') {
+    // Dark colors often associated with fall/winter
+    if (category === 'outerwear') return 'winter';
+    return 'fall';
+  }
+  if (color === 'yellow' || color === 'orange' || color === 'pink') {
+    // Bright colors often spring/summer
+    return 'spring';
+  }
+  if (color === 'white' || color === 'beige') {
+    return 'summer';
+  }
+
+  // Default based on category
+  if (category === 'shoes') {
+    // Sneakers are all-season, boots are winter
+    if (labelText.includes('boot')) return 'winter';
+    return 'all-season';
+  }
+
+  return 'all-season';
 }
 
