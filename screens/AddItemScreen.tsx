@@ -10,7 +10,7 @@ import { GlowButton } from '@/components/GlowButton';
 import { FilterChip } from '@/components/FilterChip';
 import { ClothingItem, ClothingCategory, Color, Season } from '@/types';
 import { theme } from '@/theme';
-import * as storage from '@/lib/storage';
+import { saveClothingItem } from '@/services/storageSync';
 import { analyzeClothingImage } from '@/services/imageAnalysis';
 import { ImageDropZone } from '@/components/ImageDropZone';
 import { extractFromUrl, downloadImageFromUrl } from '@/services/urlExtraction';
@@ -257,11 +257,12 @@ export const AddItemScreen: React.FC = () => {
     };
 
     try {
-      await storage.saveClothingItem(item);
+      await saveClothingItem(item);
+      Alert.alert('Success', 'Item saved to your closet!');
       navigation.goBack();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to save item. Please try again.');
-      console.error(error);
+    } catch (error: any) {
+      console.error('Save error:', error);
+      Alert.alert('Error', error.message || 'Failed to save item. Please try again.');
     }
   };
 
@@ -550,6 +551,504 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     borderRadius: theme.borderRadius.lg,
+    marginBottom: theme.spacing.md,
+    backgroundColor: theme.colors.background.tertiary,
+  },
+  imagePlaceholder: {
+    width: 200,
+    height: 200,
+    borderRadius: theme.borderRadius.lg,
+    backgroundColor: theme.colors.background.tertiary,
+    borderWidth: 2,
+    borderColor: theme.colors.border.secondary,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  imagePlaceholderText: {
+    color: theme.colors.text.tertiary,
+    marginBottom: theme.spacing.md,
+  },
+  imageButtons: {
+    flexDirection: 'row',
+    width: '100%',
+    maxWidth: 300,
+    justifyContent: 'space-between',
+  },
+  imageContainer: {
+    position: 'relative',
+    marginBottom: theme.spacing.md,
+  },
+  analyzingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: theme.borderRadius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  analyzingText: {
+    color: theme.colors.text.primary,
+    marginTop: theme.spacing.md,
+    fontSize: theme.typography.fontSize.sm,
+  },
+  imageActions: {
+    flexDirection: 'row',
+    width: '100%',
+    maxWidth: 300,
+    justifyContent: 'space-between',
+  },
+  imageButton: {
+    flex: 1,
+    marginRight: theme.spacing.sm,
+  },
+  autoDetectedBadge: {
+    marginTop: theme.spacing.sm,
+    padding: theme.spacing.sm,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderRadius: theme.borderRadius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.status.success,
+  },
+  autoDetectedText: {
+    color: theme.colors.status.success,
+    fontSize: theme.typography.fontSize.xs,
+    textAlign: 'center',
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  autoLabel: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.status.success,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
+  section: {
+    marginBottom: theme.spacing.lg,
+  },
+  label: {
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.sm,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  input: {
+    backgroundColor: theme.colors.background.tertiary,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    color: theme.colors.text.primary,
+    borderWidth: 1,
+    borderColor: theme.colors.border.secondary,
+    fontSize: theme.typography.fontSize.base,
+  },
+  tagInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  tagInput: {
+    flex: 1,
+    marginRight: theme.spacing.sm,
+  },
+  tagAddButton: {
+    paddingHorizontal: theme.spacing.md,
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: theme.spacing.sm,
+  },
+  tag: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.pill,
+    backgroundColor: theme.colors.background.tertiary,
+    borderWidth: 1,
+    borderColor: theme.colors.border.accent,
+    marginRight: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  tagText: {
+    color: theme.colors.accent.primary,
+    fontSize: theme.typography.fontSize.sm,
+  },
+  saveButton: {
+    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.xl,
+  },
+  hint: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.tertiary,
+    marginBottom: theme.spacing.sm,
+  },
+  urlInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  urlInput: {
+    flex: 1,
+    marginRight: theme.spacing.sm,
+  },
+  urlExtractButton: {
+    paddingHorizontal: theme.spacing.lg,
+  },
+  extractingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: theme.spacing.sm,
+    padding: theme.spacing.sm,
+    backgroundColor: theme.colors.background.tertiary,
+    borderRadius: theme.borderRadius.md,
+  },
+  extractingText: {
+    marginLeft: theme.spacing.sm,
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.secondary,
+  },
+});
+
+
+    marginBottom: theme.spacing.md,
+    backgroundColor: theme.colors.background.tertiary,
+  },
+  imagePlaceholder: {
+    width: 200,
+    height: 200,
+    borderRadius: theme.borderRadius.lg,
+    backgroundColor: theme.colors.background.tertiary,
+    borderWidth: 2,
+    borderColor: theme.colors.border.secondary,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  imagePlaceholderText: {
+    color: theme.colors.text.tertiary,
+    marginBottom: theme.spacing.md,
+  },
+  imageButtons: {
+    flexDirection: 'row',
+    width: '100%',
+    maxWidth: 300,
+    justifyContent: 'space-between',
+  },
+  imageContainer: {
+    position: 'relative',
+    marginBottom: theme.spacing.md,
+  },
+  analyzingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: theme.borderRadius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  analyzingText: {
+    color: theme.colors.text.primary,
+    marginTop: theme.spacing.md,
+    fontSize: theme.typography.fontSize.sm,
+  },
+  imageActions: {
+    flexDirection: 'row',
+    width: '100%',
+    maxWidth: 300,
+    justifyContent: 'space-between',
+  },
+  imageButton: {
+    flex: 1,
+    marginRight: theme.spacing.sm,
+  },
+  autoDetectedBadge: {
+    marginTop: theme.spacing.sm,
+    padding: theme.spacing.sm,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderRadius: theme.borderRadius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.status.success,
+  },
+  autoDetectedText: {
+    color: theme.colors.status.success,
+    fontSize: theme.typography.fontSize.xs,
+    textAlign: 'center',
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  autoLabel: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.status.success,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
+  section: {
+    marginBottom: theme.spacing.lg,
+  },
+  label: {
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.sm,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  input: {
+    backgroundColor: theme.colors.background.tertiary,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    color: theme.colors.text.primary,
+    borderWidth: 1,
+    borderColor: theme.colors.border.secondary,
+    fontSize: theme.typography.fontSize.base,
+  },
+  tagInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  tagInput: {
+    flex: 1,
+    marginRight: theme.spacing.sm,
+  },
+  tagAddButton: {
+    paddingHorizontal: theme.spacing.md,
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: theme.spacing.sm,
+  },
+  tag: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.pill,
+    backgroundColor: theme.colors.background.tertiary,
+    borderWidth: 1,
+    borderColor: theme.colors.border.accent,
+    marginRight: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  tagText: {
+    color: theme.colors.accent.primary,
+    fontSize: theme.typography.fontSize.sm,
+  },
+  saveButton: {
+    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.xl,
+  },
+  hint: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.tertiary,
+    marginBottom: theme.spacing.sm,
+  },
+  urlInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  urlInput: {
+    flex: 1,
+    marginRight: theme.spacing.sm,
+  },
+  urlExtractButton: {
+    paddingHorizontal: theme.spacing.lg,
+  },
+  extractingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: theme.spacing.sm,
+    padding: theme.spacing.sm,
+    backgroundColor: theme.colors.background.tertiary,
+    borderRadius: theme.borderRadius.md,
+  },
+  extractingText: {
+    marginLeft: theme.spacing.sm,
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.secondary,
+  },
+});
+
+
+  imagePlaceholder: {
+    width: 200,
+    height: 200,
+    borderRadius: theme.borderRadius.lg,
+    backgroundColor: theme.colors.background.tertiary,
+    borderWidth: 2,
+    borderColor: theme.colors.border.secondary,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  imagePlaceholderText: {
+    color: theme.colors.text.tertiary,
+    marginBottom: theme.spacing.md,
+  },
+  imageButtons: {
+    flexDirection: 'row',
+    width: '100%',
+    maxWidth: 300,
+    justifyContent: 'space-between',
+  },
+  imageContainer: {
+    position: 'relative',
+    marginBottom: theme.spacing.md,
+  },
+  analyzingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: theme.borderRadius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  analyzingText: {
+    color: theme.colors.text.primary,
+    marginTop: theme.spacing.md,
+    fontSize: theme.typography.fontSize.sm,
+  },
+  imageActions: {
+    flexDirection: 'row',
+    width: '100%',
+    maxWidth: 300,
+    justifyContent: 'space-between',
+  },
+  imageButton: {
+    flex: 1,
+    marginRight: theme.spacing.sm,
+  },
+  autoDetectedBadge: {
+    marginTop: theme.spacing.sm,
+    padding: theme.spacing.sm,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderRadius: theme.borderRadius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.status.success,
+  },
+  autoDetectedText: {
+    color: theme.colors.status.success,
+    fontSize: theme.typography.fontSize.xs,
+    textAlign: 'center',
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  autoLabel: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.status.success,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
+  section: {
+    marginBottom: theme.spacing.lg,
+  },
+  label: {
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.sm,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  input: {
+    backgroundColor: theme.colors.background.tertiary,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    color: theme.colors.text.primary,
+    borderWidth: 1,
+    borderColor: theme.colors.border.secondary,
+    fontSize: theme.typography.fontSize.base,
+  },
+  tagInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  tagInput: {
+    flex: 1,
+    marginRight: theme.spacing.sm,
+  },
+  tagAddButton: {
+    paddingHorizontal: theme.spacing.md,
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: theme.spacing.sm,
+  },
+  tag: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.pill,
+    backgroundColor: theme.colors.background.tertiary,
+    borderWidth: 1,
+    borderColor: theme.colors.border.accent,
+    marginRight: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  tagText: {
+    color: theme.colors.accent.primary,
+    fontSize: theme.typography.fontSize.sm,
+  },
+  saveButton: {
+    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.xl,
+  },
+  hint: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.tertiary,
+    marginBottom: theme.spacing.sm,
+  },
+  urlInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  urlInput: {
+    flex: 1,
+    marginRight: theme.spacing.sm,
+  },
+  urlExtractButton: {
+    paddingHorizontal: theme.spacing.lg,
+  },
+  extractingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: theme.spacing.sm,
+    padding: theme.spacing.sm,
+    backgroundColor: theme.colors.background.tertiary,
+    borderRadius: theme.borderRadius.md,
+  },
+  extractingText: {
+    marginLeft: theme.spacing.sm,
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.secondary,
+  },
+});
+
+
     marginBottom: theme.spacing.md,
     backgroundColor: theme.colors.background.tertiary,
   },

@@ -171,14 +171,23 @@ async function analyzeWithGoogleVision(imageBase64: string): Promise<ImageAnalys
     // Extract category from labels and objects
     const labels = annotations.labelAnnotations || [];
     const objects = annotations.localizedObjectAnnotations || [];
+    
+    // Log for debugging (remove in production if needed)
+    console.log('Google Vision Labels:', labels.slice(0, 5).map((l: any) => `${l.description} (${l.score})`));
+    console.log('Google Vision Objects:', objects.slice(0, 5).map((o: any) => `${o.name} (${o.score})`));
+    
     const category = inferCategoryFromLabels(labels, objects);
     
     // Extract color from image properties - use top 3 dominant colors
     const colors = annotations.imagePropertiesAnnotation?.dominantColors?.colors || [];
+    console.log('Dominant Colors:', colors.slice(0, 3).map((c: any) => `RGB(${c.color.red},${c.color.green},${c.color.blue}) ${(c.pixelFraction * 100).toFixed(1)}%`));
+    
     const color = inferColorFromProperties(colors, labels);
     
     // Extract brand from text detection
     const texts = annotations.textAnnotations || [];
+    console.log('Detected Text:', texts.slice(0, 3).map((t: any) => t.description));
+    
     const brand = extractBrandFromText(texts);
 
     // Generate tags from labels (prioritize high confidence)
@@ -293,17 +302,22 @@ function inferCategoryFromLabels(labels: any[], objects: any[]): string | null {
     });
   });
 
-  // Score each category
+  // Score each category - prioritize objects over labels
   const categoryScores: Record<string, number> = {};
   
   for (const [category, config] of Object.entries(categoryKeywords)) {
     let score = 0;
     
+    // First check objects (more reliable for clothing items)
     for (const item of allItems) {
+      // Objects get higher weight
+      const isObject = objects.some((o: any) => o.name.toLowerCase() === item.text);
+      const weightMultiplier = isObject ? 2.0 : 1.0;
+      
       for (const keyword of config.keywords) {
         if (item.text.includes(keyword)) {
-          // Weight by confidence and category weight
-          score += item.confidence * config.weight;
+          // Weight by confidence, category weight, and object multiplier
+          score += item.confidence * config.weight * weightMultiplier;
           break; // Only count once per item
         }
       }
@@ -359,8 +373,16 @@ function inferColorFromProperties(colors: any[], labels: any[]): string | null {
   // If no color in labels, use dominant color from image
   if (colors.length === 0) return null;
 
-  // Get top 2-3 dominant colors and analyze them
-  const topColors = colors.slice(0, 3);
+  // Get top 3-5 dominant colors and analyze them
+  // Filter out white/very light colors (likely background)
+  const topColors = colors
+    .filter((c: any) => {
+      const rgb = c.color;
+      const brightness = ((rgb.red || 0) + (rgb.green || 0) + (rgb.blue || 0)) / 3;
+      return brightness < 240; // Filter out very light backgrounds
+    })
+    .slice(0, 5);
+    
   const colorScores: Record<string, number> = {};
 
   for (const colorData of topColors) {
@@ -370,8 +392,8 @@ function inferColorFromProperties(colors: any[], labels: any[]): string | null {
     const b = rgb.blue || 0;
     const pixelFraction = colorData.pixelFraction || 0;
 
-    // Skip very small color areas (likely background)
-    if (pixelFraction < 0.05) continue;
+    // Skip very small color areas (likely noise/background)
+    if (pixelFraction < 0.08) continue; // Increased threshold
 
     const brightness = (r + g + b) / 3;
     const maxChannel = Math.max(r, g, b);
@@ -452,10 +474,23 @@ function extractBrandFromText(texts: any[]): string | null {
     'old navy', 'american eagle', 'abercrombie', 'hollister', 'forever 21'
   ];
 
-  // Check all text annotations, prioritizing longer/more complete text
+  // Check all text annotations, prioritizing shorter text (logo text is usually short)
+  // Also prioritize text that appears in the upper portion of image (where logos usually are)
   const sortedTexts = texts
-    .filter((t: any) => t.description && t.description.length > 1)
-    .sort((a: any, b: any) => b.description.length - a.description.length);
+    .filter((t: any) => {
+      const desc = t.description?.toLowerCase() || '';
+      // Filter out very long text (likely product descriptions, not brand names)
+      return desc && desc.length > 1 && desc.length < 50;
+    })
+    .sort((a: any, b: any) => {
+      // Prioritize shorter text (brand names are usually short)
+      const lengthDiff = a.description.length - b.description.length;
+      if (Math.abs(lengthDiff) > 5) return lengthDiff;
+      // If similar length, check bounding box position (logos often in top area)
+      const aY = a.boundingPoly?.vertices?.[0]?.y || 9999;
+      const bY = b.boundingPoly?.vertices?.[0]?.y || 9999;
+      return aY - bY; // Lower Y = higher on image = more likely logo
+    });
 
   for (const text of sortedTexts) {
     const textLower = text.description?.toLowerCase() || '';
@@ -468,6 +503,7 @@ function extractBrandFromText(texts: any[]): string | null {
         // Format brand name properly
         if (brand === 'h&m' || brand === 'h and m') return 'H&M';
         if (brand === 'levi' || brand === 'levis') return 'Levi\'s';
+        if (brand === 'columbia') return 'Columbia';
         return brand.split(' ').map(w => {
           if (w === 'and') return '&';
           return w.charAt(0).toUpperCase() + w.slice(1);
