@@ -4,48 +4,48 @@
 
 // Get API URL - supports dynamic configuration for mobile devices
 const getApiBaseUrl = (): string => {
-  // Production URL - check for environment variable or GitHub Pages
-  if (!__DEV__) {
-    // Check if we're on GitHub Pages
-    if (typeof window !== 'undefined') {
-      const hostname = window.location.hostname;
-      // GitHub Pages domain
-      if (hostname.includes('github.io') || hostname.includes('github.com')) {
-        // Use environment variable or default to a hosted backend
-        // Users can configure this in settings
-        const envApiUrl = process.env.REACT_APP_API_URL || process.env.EXPO_PUBLIC_API_URL;
-        if (envApiUrl) {
-          return envApiUrl;
-        }
-        // Default: use Render.com backend for GitHub Pages
-        return 'https://ai-closet-backend.onrender.com/api';
-      }
+  // First, check for custom URL in localStorage (user override)
+  if (typeof localStorage !== 'undefined') {
+    const customUrl = localStorage.getItem('api_base_url');
+    if (customUrl && customUrl.trim() !== '') {
+      return customUrl;
     }
-    // Other production environments
+  }
+
+  // Check hostname first (most reliable for GitHub Pages)
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    
+    // GitHub Pages domain - always use Render.com backend
+    if (hostname.includes('github.io') || hostname.includes('github.com')) {
+      const envApiUrl = process.env.REACT_APP_API_URL || process.env.EXPO_PUBLIC_API_URL;
+      if (envApiUrl && envApiUrl.trim() !== '') {
+        return envApiUrl;
+      }
+      // Default: use Render.com backend for GitHub Pages
+      return 'https://ai-closet-backend.onrender.com/api';
+    }
+    
+    // Localhost - use local backend
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:3000/api';
+    }
+    
+    // Remote device (IP address) - try to use that IP for backend
+    if (hostname.includes('.')) {
+      // Could be accessing from another device on the network
+      // Try using the same IP for backend
+      return `http://${hostname}:3000/api`;
+    }
+  }
+
+  // Production mode (not __DEV__) - use Render.com backend
+  if (!__DEV__) {
     const envApiUrl = process.env.REACT_APP_API_URL || process.env.EXPO_PUBLIC_API_URL;
     return envApiUrl || 'https://ai-closet-backend.onrender.com/api';
   }
   
-  // Development - check for custom URL (for mobile devices)
-  if (typeof localStorage !== 'undefined') {
-    const customUrl = localStorage.getItem('api_base_url');
-    if (customUrl) {
-      return customUrl;
-    }
-  }
-  
-  // Try to detect if we're accessing from a remote device
-  // If hostname is not localhost/127.0.0.1, use the host's IP
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    // If accessing from another device (not localhost), use the host's IP
-    if (hostname !== 'localhost' && hostname !== '127.0.0.1' && hostname.includes('.')) {
-      // Extract IP from current URL and use it for API
-      return `http://${hostname}:3000/api`;
-    }
-  }
-  
-  // Default: localhost for web on same machine
+  // Development mode - default to localhost
   return 'http://localhost:3000/api';
 };
 
@@ -66,6 +66,16 @@ export interface ApiResponse<T> {
 class ApiService {
   private token: string | null = null;
   private apiBaseUrl: string = getApiBaseUrl();
+
+  constructor() {
+    // Log the initial API URL for debugging
+    if (typeof window !== 'undefined') {
+      console.log('🌐 API Service initialized');
+      console.log('📍 Hostname:', window.location.hostname);
+      console.log('🔗 API URL:', this.apiBaseUrl);
+      console.log('🔧 __DEV__:', __DEV__);
+    }
+  }
 
   setToken(token: string | null) {
     this.token = token;
@@ -89,7 +99,7 @@ class ApiService {
   }
 
   getApiUrl(): string {
-    // Check for updated URL in localStorage first
+    // Check for updated URL in localStorage first (user override)
     if (typeof localStorage !== 'undefined') {
       const stored = localStorage.getItem('api_base_url');
       if (stored && stored.trim() !== '') {
@@ -97,11 +107,16 @@ class ApiService {
         return stored;
       }
     }
-    // If no stored URL, use the default from getApiBaseUrl()
-    // Re-evaluate in case we're in production now
+    // If no stored URL, re-evaluate the default (in case environment changed)
     const defaultUrl = getApiBaseUrl();
     if (defaultUrl && defaultUrl.trim() !== '') {
-      this.apiBaseUrl = defaultUrl;
+      // Only update if it's different (avoid unnecessary updates)
+      if (this.apiBaseUrl !== defaultUrl) {
+        this.apiBaseUrl = defaultUrl;
+        if (typeof window !== 'undefined') {
+          console.log('🔄 API URL updated to:', this.apiBaseUrl);
+        }
+      }
     }
     return this.apiBaseUrl;
   }
