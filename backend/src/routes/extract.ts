@@ -44,16 +44,23 @@ router.post('/extract', async (req: Request, res: Response) => {
       
       clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      return res.status(response.status).json({ 
-        error: `Failed to fetch URL: ${response.statusText}` 
-      });
+      if (!response.ok) {
+        return res.status(response.status).json({ 
+          error: `Failed to fetch URL: ${response.statusText}` 
+        });
+      }
+
+      const html = await response.text();
+      const extracted = parseHtml(html, url);
+
+      res.json(extracted);
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        return res.status(408).json({ error: 'Request timeout - URL took too long to respond' });
+      }
+      throw fetchError;
     }
-
-    const html = await response.text();
-    const extracted = parseHtml(html, url);
-
-    res.json(extracted);
   } catch (error: any) {
     console.error('URL extraction error:', error);
     res.status(500).json({ 
