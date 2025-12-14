@@ -9,6 +9,7 @@ import { initDatabase } from './db/database';
 import authRoutes from './routes/auth';
 import wardrobeRoutes from './routes/wardrobe';
 import extractRoutes from './routes/extract';
+import imageAnalysisRoutes from './routes/imageAnalysis';
 
 dotenv.config();
 
@@ -65,6 +66,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/wardrobe', wardrobeRoutes);
 app.use('/api/extract', extractRoutes);
+app.use('/api/image-analysis', imageAnalysisRoutes);
 
 // 404 handler for undefined routes - must return JSON
 app.use((req: express.Request, res: express.Response) => {
@@ -103,6 +105,8 @@ async function startServer() {
       console.log(`📊 Health check: http://localhost:${port}/health`);
       console.log(`🔐 Auth endpoints: http://localhost:${port}/api/auth`);
       console.log(`👕 Wardrobe endpoints: http://localhost:${port}/api/wardrobe`);
+      console.log(`🔗 Extraction endpoint: http://localhost:${port}/api/extract/extract`);
+      console.log(`🖼️  Image analysis endpoint: http://localhost:${port}/api/image-analysis/analyze`);
       console.log(`\n💡 To connect from mobile devices:`);
       console.log(`   1. Find your IP: ipconfig (Windows) or ifconfig (Mac/Linux)`);
       console.log(`   2. Use: http://YOUR_IP:${port}/api`);
