@@ -252,12 +252,45 @@ function inferColorFromProperties(colors: any[]): string | null {
   // Get the most dominant color
   const dominantColor = colors[0];
   const rgb = dominantColor.color;
+  const r = rgb.red || 0;
+  const g = rgb.green || 0;
+  const b = rgb.blue || 0;
 
-  // Simple RGB to color name mapping
-  const colorNames = ['black', 'white', 'gray', 'navy', 'blue', 'red', 'green', 'yellow', 'orange', 'pink', 'purple', 'brown', 'beige'];
+  // Convert RGB to color name using simple thresholds
+  const brightness = (r + g + b) / 3;
   
-  // This is simplified - in production, use a proper color matching algorithm
-  return 'black'; // Placeholder
+  // Black/white/gray detection
+  if (brightness < 30) return 'black';
+  if (brightness > 240 && Math.abs(r - g) < 20 && Math.abs(g - b) < 20) return 'white';
+  if (Math.abs(r - g) < 30 && Math.abs(g - b) < 30 && brightness < 200) return 'gray';
+  
+  // Color detection based on dominant channel
+  const maxChannel = Math.max(r, g, b);
+  const minChannel = Math.min(r, g, b);
+  const saturation = maxChannel > 0 ? (maxChannel - minChannel) / maxChannel : 0;
+  
+  if (saturation < 0.2) {
+    // Low saturation = gray/beige/brown
+    if (brightness < 150) return 'brown';
+    if (brightness < 200) return 'beige';
+    return 'gray';
+  }
+  
+  // High saturation colors
+  if (r > g && r > b && r > 150) {
+    if (g > 100 && b < 100) return 'orange';
+    if (b > 100) return 'pink';
+    return 'red';
+  }
+  if (g > r && g > b && g > 150) return 'green';
+  if (b > r && b > g && b > 150) {
+    if (brightness < 100) return 'navy';
+    return 'blue';
+  }
+  if (r > 100 && g > 100 && b < 100) return 'yellow';
+  if (r > 100 && b > 100 && g < 100) return 'purple';
+  
+  return null;
 }
 
 /**
